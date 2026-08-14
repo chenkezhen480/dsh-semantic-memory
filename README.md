@@ -51,12 +51,73 @@ FTS5), this store retrieves by *meaning*.
      - id: semantic-memory
        name: 'dsh-plugin-semantic-memory'
        config:
-         provider: local
          remoteHost: https://hf-mirror.com
          promptTopK: 3
          autoSummarizeEvery: 5
      ```
+   - Leave `provider` unset: selection is automatic (see below).
 3. `pnpm install` in the profile directory, then restart `dsh web`.
+
+## Usage
+
+### Provider selection (automatic)
+
+The embedding provider is chosen from the configuration object alone — no
+explicit switch needed:
+
+| Configuration | Provider |
+|---|---|
+| `apiKey` present (non-empty) | **API** (OpenAI-compatible `/embeddings` endpoint) |
+| no `apiKey` | **local** (ONNX via `@huggingface/transformers`, offline) |
+| `provider: 'local'` (explicit) | local, even with an `apiKey` set |
+| `provider: 'api'` (explicit) | API; requires `apiKey` |
+
+Switching is just filling or clearing `apiKey` — a restart is only needed for
+the patch file; the settings document (`~/.dsh/settings.yaml`, `semantic-memory:`
+section) hot-reloads without one. The first local embed downloads the model
+(~100 MB, cached in `~/.cache/huggingface`; use `remoteHost` for a mirror).
+
+### Verify the plugin is live
+
+Open a **new session** (existing sessions keep their original tool set) and ask
+the model: *"Do you have memory_* tools?"* — it should list `memory_write`,
+`memory_search`, `memory_forget`, and `memory_stats`. The system prompt also
+carries a `## Long-term memory` section once memories exist.
+
+### What the model can do
+
+- **Persist on its own** — state a durable preference, fact, or decision; the
+  injected guidance makes the model call `memory_write` without being asked.
+- **Ask it to remember** — *"记住：我在用硅基流动的 API"* → `memory_write`.
+- **Recall** — *"我之前对回答风格有什么偏好？"* → the per-turn semantic recall
+  surfaces relevant memories automatically; `memory_search` digs deeper
+  (supports `kind`, `tags`, `workspace`, `limit`, `min_score`).
+- **Manage** — `memory_forget <id>` deletes; `memory_stats` summarizes the store.
+
+### Automatic behaviors
+
+| Trigger | Behavior |
+|---|---|
+| Every user message | Asynchronous embedding + search; the freshest per-session hits are injected into the next prompt assembly (`## Long-term memory (recalled for your current question)`) |
+| Every N user messages (default 5) | The harness LLM distills the recent transcript into memory entries, written with the `auto` tag |
+| Prompt assembly, no fresh recall | Strongest memories (importance × recency × access) injected as fallback |
+
+### Where the data lives
+
+- Store: `$DSH_HOME/memories/memories.jsonl` (one JSON line per entry, vectors
+  included; edit/backup freely).
+- Settings: `~/.dsh/settings.yaml` under `semantic-memory:` (hot-reloaded).
+
+### Troubleshooting
+
+- **No memory_* tools in a session** — the session predates the plugin; start a
+  new one.
+- **First local embed is slow / fails** — the model downloads on first use; set
+  `remoteHost: https://hf-mirror.com` in restricted networks.
+- **`api` provider errors** — confirm `apiKey` is set and `apiBase` points at an
+  OpenAI-compatible endpoint (a `/v1` base gets `/embeddings` appended).
+- **Auto-summary never fires** — it needs the `llm` and `agentDefaultModel`
+  services (present in the standard web profile) and `autoSummarizeEvery > 0`.
 
 ## Configuration
 
