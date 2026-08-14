@@ -46,14 +46,16 @@ FTS5), this store retrieves by *meaning*.
 1. Build this package (`npm install && npm run build`).
 2. Add it to your profile (e.g. `~/.dsh/profiles/web`):
    - `package.json` `dependencies`: `"dsh-plugin-semantic-memory": "file:C:/projects/dsh-embedding"`
-   - `cordis.patch.yml`:
+   - `cordis.patch.yml` — new entries must be **inserted** (a bare `- id:` row
+     only overrides an existing bundle id and is silently ignored):
      ```yaml
-     - id: semantic-memory
-       name: 'dsh-plugin-semantic-memory'
-       config:
-         remoteHost: https://hf-mirror.com
-         promptTopK: 3
-         autoSummarizeEvery: 5
+     - insert:
+         - id: semantic-memory
+           name: 'dsh-plugin-semantic-memory'
+           config:
+             remoteHost: https://hf-mirror.com
+             promptTopK: 3
+             autoSummarizeEvery: 5
      ```
    - Leave `provider` unset: selection is automatic (see below).
 3. `pnpm install` in the profile directory, then restart `dsh web`.
