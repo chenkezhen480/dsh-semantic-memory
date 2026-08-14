@@ -118,6 +118,7 @@ export class AutoSummarizer {
   private trigger(session: { readonly id: string; readonly events?: readonly unknown[] }): void {
     if (this.busy.has(session.id)) return
     this.busy.add(session.id)
+    console.log(`[semantic-memory] auto-summary triggered for session ${session.id} (every ${this.every})`)
     void (async () => {
       try {
         await this.summarize(session)
@@ -132,10 +133,17 @@ export class AutoSummarizer {
 
   private async summarize(session: { readonly id: string; readonly events?: readonly unknown[] }): Promise<void> {
     const { llm, defaultModel } = this.services
-    if (llm === undefined || defaultModel === undefined) return
+    if (llm === undefined || defaultModel === undefined) {
+      console.error(`[semantic-memory] auto-summary skipped: llm=${llm === undefined ? 'missing' : 'ok'} defaultModel=${defaultModel === undefined ? 'missing' : 'ok'}`)
+      return
+    }
     const transcript = extractTranscript(session.events, this.window)
-    if (transcript.length === 0) return
+    if (transcript.length === 0) {
+      console.error(`[semantic-memory] auto-summary skipped: empty transcript (events=${session.events?.length ?? 0})`)
+      return
+    }
     const { provider, model, reasoningEffort } = defaultModel.currentSelection()
+    console.log(`[semantic-memory] auto-summary calling ${provider}/${model} (transcript ${transcript.length} chars)`)
     const text = await collectText(llm.stream({
       provider,
       model,
@@ -150,8 +158,13 @@ export class AutoSummarizer {
       temperature: this.temperature,
       maxTokens: this.maxTokens,
     }))
+    console.log(`[semantic-memory] auto-summary model output: ${JSON.stringify(text.slice(0, 300))}`)
     const items = parseSummary(text)
-    if (items.length === 0) return
+    if (items.length === 0) {
+      console.error('[semantic-memory] auto-summary: no items parsed from model output')
+      return
+    }
+    console.log(`[semantic-memory] auto-summary parsed ${items.length} items`)
     const vectors = await this.services.embeddings.embed(items.map(item => item.content))
     const events = session.events ?? []
     const last = events.length > 0 ? events[events.length - 1] as { seq?: number } : undefined

@@ -105,8 +105,16 @@ export function apply(ctx: Context, config: ConfigValue): void {
   const llm = ctx.get('llm') as unknown as LlmLike | undefined
   const defaultModel = ctx.get('agentDefaultModel') as unknown as DefaultModelLike | undefined
   function ensureSummarizer(): void {
-    if (summarizer !== undefined || resolved.autoSummarizeEvery < 1
-      || llm === undefined || defaultModel === undefined) return
+    if (summarizer !== undefined) return
+    if (resolved.autoSummarizeEvery < 1) {
+      ctx.logger.info('semantic-memory: auto-summarize disabled (autoSummarizeEvery=%d)', resolved.autoSummarizeEvery)
+      return
+    }
+    if (llm === undefined || defaultModel === undefined) {
+      ctx.logger.warn('semantic-memory: auto-summarize unavailable — llm=%s agentDefaultModel=%s',
+        llm === undefined ? 'missing' : 'ok', defaultModel === undefined ? 'missing' : 'ok')
+      return
+    }
     const created = createSummarizer({ store, embeddings, llm, defaultModel }, resolved)
     if (created === undefined) return
     summarizer = created
