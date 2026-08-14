@@ -62,11 +62,11 @@ FTS5), this store retrieves by *meaning*.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `provider` | `local` | `local` ONNX inference or `api` OpenAI-compatible endpoint. |
+| `provider` | `auto` | `auto` selects by apiKey (non-empty → `api`, else `local`); explicit `local`/`api` overrides. |
 | `localModel` | `Xenova/bge-small-zh-v1.5` | Local transformer model id. |
 | `remoteHost` | `https://huggingface.co` | Model download host; set `https://hf-mirror.com` in restricted networks. |
 | `apiBase` | `https://api.siliconflow.cn/v1` | API base URL (an `/embeddings` route is appended). |
-| `apiKey` | `''` | API key (required when `provider: api`). |
+| `apiKey` | `''` | API key. When non-empty and provider is not explicitly `local`, the API provider is used. |
 | `apiModel` | `BAAI/bge-m3` | API embedding model name. |
 | `memoryPath` | `$DSH_HOME/memories/memories.jsonl` | Store file path. |
 | `promptTopK` | `3` | Memories injected per system-prompt assembly (0 disables). |
