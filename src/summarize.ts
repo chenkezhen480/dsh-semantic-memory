@@ -29,6 +29,7 @@ export interface LlmLike {
   stream(options: {
     provider: string
     model: string
+    reasoningEffort?: string
     system?: string
     messages: readonly unknown[]
     temperature?: number
@@ -40,7 +41,7 @@ export interface LlmLike {
 
 /** Structural default-model surface (avoids a hard dsh-agent-default-model dep). */
 export interface DefaultModelLike {
-  read(): { readonly provider: string; readonly model: string }
+  currentSelection(): { readonly provider: string; readonly model: string; readonly reasoningEffort?: string }
 }
 
 interface SummarizerServices {
@@ -134,10 +135,11 @@ export class AutoSummarizer {
     if (llm === undefined || defaultModel === undefined) return
     const transcript = extractTranscript(session.events, this.window)
     if (transcript.length === 0) return
-    const { provider, model } = defaultModel.read()
+    const { provider, model, reasoningEffort } = defaultModel.currentSelection()
     const text = await collectText(llm.stream({
       provider,
       model,
+      ...reasoningEffort === undefined ? {} : { reasoningEffort },
       system: SUMMARY_SYSTEM_PROMPT,
       messages: [{
         role: 'user',

@@ -129,7 +129,7 @@ test('auto-summarizer triggers every N user messages and writes memories', async
     store,
     embeddings,
     llm: llm as never,
-    defaultModel: { read: () => ({ provider: 'p', model: 'm' }) },
+    defaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
   }, { every: 5, window: 12, maxTokens: 400, temperature: 0.2 })
 
   const events: unknown[] = []

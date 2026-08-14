@@ -26,6 +26,7 @@ export interface LlmLike {
     stream(options: {
         provider: string;
         model: string;
+        reasoningEffort?: string;
         system?: string;
         messages: readonly unknown[];
         temperature?: number;
@@ -36,9 +37,10 @@ export interface LlmLike {
 }
 /** Structural default-model surface (avoids a hard dsh-agent-default-model dep). */
 export interface DefaultModelLike {
-    read(): {
+    currentSelection(): {
         readonly provider: string;
         readonly model: string;
+        readonly reasoningEffort?: string;
     };
 }
 interface SummarizerServices {
