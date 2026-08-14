@@ -1,0 +1,46 @@
+{
+  "name": "dsh-plugin-semantic-memory",
+  "version": "0.1.0",
+  "description": "Semantic long-term memory for DeepSeek Harness: embedding-based retrieval over a persistent cross-session memory store, with model-facing tools and automatic context injection.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --test-isolation=none \"lib/tests/*.test.js\""
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/dsh-tools": "*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "memory",
+    "embedding",
+    "semantic-search",
+    "deepseek-harness"
+  ],
+  "license": "MIT"
+}
