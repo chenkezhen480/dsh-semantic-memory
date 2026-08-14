@@ -18,6 +18,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { RecallCache } from './recall.ts';
 import type { MemoryStore } from './store.ts';
 export interface PromptInjectionConfig {
-    readonly topK: number;
+    /** Current topK; a function so settings hot-reloads take effect immediately. */
+    readonly topK: () => number;
 }
 export declare function registerMemoryPrompt(ctx: Context, store: MemoryStore, recall: RecallCache | undefined, config: PromptInjectionConfig): void;

@@ -53,10 +53,15 @@ interface SummaryItem {
 }
 export declare class AutoSummarizer {
     private readonly services;
-    private readonly config;
     private readonly counts;
     private readonly busy;
+    private every;
+    private window;
+    private maxTokens;
+    private temperature;
     constructor(services: SummarizerServices, config: SummarizeConfig);
+    /** Apply a settings hot-reload; threshold and window move immediately. */
+    setConfig(config: SummarizeConfig): void;
     /** Listen for user messages; the listener is owned by ctx. */
     attach(ctx: Context): void;
     /** Number of user messages seen for one session (test/observation surface). */

@@ -14,7 +14,8 @@ export interface MemoryToolServices {
     readonly store: MemoryStore;
     readonly embeddings: EmbeddingService;
 }
-export declare function registerMemoryTools(ctx: Context, services: MemoryToolServices, config: {
+export interface MemoryToolConfig {
     readonly maxSearchResults: number;
     readonly minScore: number;
-}): void;
+}
+export declare function registerMemoryTools(ctx: Context, services: MemoryToolServices, config: () => MemoryToolConfig): void;

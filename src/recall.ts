@@ -18,10 +18,10 @@ import type { EmbeddingService } from './embedding.ts'
 import type { MemoryStore, SearchHit } from './store.ts'
 
 export interface RecallConfig {
-  /** Maximum hits injected per recall. */
-  readonly topK: number
-  /** Minimum cosine score for a recall hit. */
-  readonly minScore: number
+  /** Maximum hits injected per recall; a function so settings reloads move it live. */
+  readonly topK: () => number
+  /** Minimum cosine score for a recall hit; a function so settings reloads move it live. */
+  readonly minScore: () => number
   /** A recall cache older than this is stale and falls back to strength ranking. */
   readonly staleMs: number
 }
@@ -70,8 +70,8 @@ export class RecallCache {
         const [vector] = await this.embeddings.embed([query])
         if (vector === undefined || vector.length === 0 || generation !== this.generation) return
         const hits = await this.store.search(vector, {
-          limit: this.config.topK,
-          minScore: this.config.minScore,
+          limit: this.config.topK(),
+          minScore: this.config.minScore(),
         })
         if (generation !== this.generation) return
         this.state = { sessionId, query, hits, at: Date.now() }

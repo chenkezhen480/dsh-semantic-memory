@@ -59,7 +59,8 @@ export declare class MemoryStore {
     private loaded;
     private persistChain;
     private tempCounter;
-    private readonly halfLifeMs;
+    /** Decay half-life; mutable so settings hot-reloads can move it. */
+    halfLifeMs: number;
     constructor(path: string, halfLifeMs: number);
     get size(): number;
     /** Load the store once; later calls are no-ops. */

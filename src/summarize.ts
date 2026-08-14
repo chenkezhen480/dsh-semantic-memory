@@ -71,11 +71,28 @@ const SUMMARY_STOP = ['\n\n']
 export class AutoSummarizer {
   private readonly counts = new Map<string, number>()
   private readonly busy = new Set<string>()
+  private every: number
+  private window: number
+  private maxTokens: number
+  private temperature: number
 
   constructor(
     private readonly services: SummarizerServices,
-    private readonly config: SummarizeConfig,
-  ) {}
+    config: SummarizeConfig,
+  ) {
+    this.every = config.every
+    this.window = config.window
+    this.maxTokens = config.maxTokens
+    this.temperature = config.temperature
+  }
+
+  /** Apply a settings hot-reload; threshold and window move immediately. */
+  setConfig(config: SummarizeConfig): void {
+    this.every = config.every
+    this.window = config.window
+    this.maxTokens = config.maxTokens
+    this.temperature = config.temperature
+  }
 
   /** Listen for user messages; the listener is owned by ctx. */
   attach(ctx: Context): void {
@@ -84,7 +101,7 @@ export class AutoSummarizer {
       const id = session.id
       const count = (this.counts.get(id) ?? 0) + 1
       this.counts.set(id, count)
-      if (count % this.config.every === 0) {
+      if (count % this.every === 0) {
         this.trigger(session)
       }
     })
@@ -113,7 +130,7 @@ export class AutoSummarizer {
   private async summarize(session: { readonly id: string; readonly events?: readonly unknown[] }): Promise<void> {
     const { llm, defaultModel } = this.services
     if (llm === undefined || defaultModel === undefined) return
-    const transcript = extractTranscript(session.events, this.config.window)
+    const transcript = extractTranscript(session.events, this.window)
     if (transcript.length === 0) return
     const { provider, model } = defaultModel.read()
     const text = await collectText(llm.stream({
@@ -126,8 +143,8 @@ export class AutoSummarizer {
         source: { kind: 'user' },
         id: `semantic-memory-summary-${session.id}`,
       }],
-      temperature: this.config.temperature,
-      maxTokens: this.config.maxTokens,
+      temperature: this.temperature,
+      maxTokens: this.maxTokens,
       stop: SUMMARY_STOP,
     }))
     const items = parseSummary(text)

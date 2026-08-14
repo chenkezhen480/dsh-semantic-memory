@@ -16,10 +16,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { EmbeddingService } from './embedding.ts';
 import type { MemoryStore, SearchHit } from './store.ts';
 export interface RecallConfig {
-    /** Maximum hits injected per recall. */
-    readonly topK: number;
-    /** Minimum cosine score for a recall hit. */
-    readonly minScore: number;
+    /** Maximum hits injected per recall; a function so settings reloads move it live. */
+    readonly topK: () => number;
+    /** Minimum cosine score for a recall hit; a function so settings reloads move it live. */
+    readonly minScore: () => number;
     /** A recall cache older than this is stale and falls back to strength ranking. */
     readonly staleMs: number;
 }

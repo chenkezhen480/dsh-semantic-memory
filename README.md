@@ -31,6 +31,13 @@ FTS5), this store retrieves by *meaning*.
   per-session recall is rendered into the system prompt **before the turn's
   prompt assembly** (question-aware). With no fresh recall yet, the strongest
   resident memories are injected as a fixed-size fallback.
+- **Proactive writing guidance** — the injected prompt tells the model to call
+  `memory_write` on its own when the user states a durable preference, an
+  established fact, or an explicit decision (no need to say "remember").
+- **Auto-summarization** — every N user messages (default 5), the plugin asks
+  the harness LLM to distill the recent transcript into memory entries and
+  writes them (tagged `auto`). One in-flight summary per session; silent on
+  failure; only active when `llm` and `agentDefaultModel` services exist.
 - **Workspace tagging** — entries record the caller session's cwd; search
   scopes to that workspace by default and can opt into cross-workspace recall.
 
@@ -38,14 +45,16 @@ FTS5), this store retrieves by *meaning*.
 
 1. Build this package (`npm install && npm run build`).
 2. Add it to your profile (e.g. `~/.dsh/profiles/web`):
-   - `package.json` `dependencies`: `"dsh-plugin-semantic-memory": "file:C:/projects/dsh-feishu"`
+   - `package.json` `dependencies`: `"dsh-plugin-semantic-memory": "file:C:/projects/dsh-embedding"`
    - `cordis.patch.yml`:
      ```yaml
      - id: semantic-memory
        name: 'dsh-plugin-semantic-memory'
        config:
          provider: local
+         remoteHost: https://hf-mirror.com
          promptTopK: 3
+         autoSummarizeEvery: 5
      ```
 3. `pnpm install` in the profile directory, then restart `dsh web`.
 
@@ -64,6 +73,10 @@ FTS5), this store retrieves by *meaning*.
 | `maxSearchResults` | `10` | Default `memory_search` hit cap. |
 | `minScore` | `0.35` | Default minimum relevance for search hits. |
 | `halfLifeMs` | 30 days | Memory strength half-life. |
+| `autoSummarizeEvery` | `5` | Auto-summarize every N user messages (0 disables; needs llm + agentDefaultModel). |
+| `summarizeWindow` | `12` | Most recent messages included in one auto-summary. |
+| `summarizeMaxTokens` | `400` | Token budget for the summary call. |
+| `summarizeTemperature` | `0.2` | Sampling temperature for the summary call. |
 
 ## Memory model
 

@@ -20,7 +20,8 @@ import type { RecallCache } from './recall.ts'
 import type { MemoryEntry, MemoryStore, SearchHit } from './store.ts'
 
 export interface PromptInjectionConfig {
-  readonly topK: number
+  /** Current topK; a function so settings hot-reloads take effect immediately. */
+  readonly topK: () => number
 }
 
 /** Structural access to the assembly's agent (avoids a hard dsh-agent dep). */
@@ -48,7 +49,7 @@ export function registerMemoryPrompt(
       }
       // 2) Fallback: strongest resident memories.
       if (store.size === 0) return ''
-      const candidates = store.promptCandidatesSync(config.topK)
+      const candidates = store.promptCandidatesSync(config.topK())
       if (candidates.length === 0) return ''
       const lines = candidates.map(formatInjected)
       return [

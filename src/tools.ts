@@ -63,10 +63,16 @@ const forgetParameters = {
   id: { type: 'string', required: true, description: 'Memory id from memory_search or memory_write.' },
 } as const
 
-export function registerMemoryTools(ctx: Context, services: MemoryToolServices, config: {
+export interface MemoryToolConfig {
   readonly maxSearchResults: number
   readonly minScore: number
-}): void {
+}
+
+export function registerMemoryTools(
+  ctx: Context,
+  services: MemoryToolServices,
+  config: () => MemoryToolConfig,
+): void {
   ctx.tools.register(defineTool({
     name: 'memory_write',
     description: 'Write one fact, decision, preference, or note into long-term semantic memory. Repeats with the same kind and content update the existing entry.',
@@ -119,8 +125,8 @@ export function registerMemoryTools(ctx: Context, services: MemoryToolServices, 
         tags: normalizeTags(args.tags),
         workspace: workspace ?? caller.workspace,
         includeOtherWorkspaces: workspace !== undefined || args.workspace === '*',
-        limit: typeof args.limit === 'number' ? clampLimit(args.limit) : config.maxSearchResults,
-        minScore: typeof args.min_score === 'number' ? args.min_score : config.minScore,
+        limit: typeof args.limit === 'number' ? clampLimit(args.limit) : config().maxSearchResults,
+        minScore: typeof args.min_score === 'number' ? args.min_score : config().minScore,
       })
       if (hits.length === 0) return 'No matching memories found.'
       const lines = hits.map(({ entry, score }) => formatHit(entry, score))

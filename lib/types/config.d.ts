@@ -3,16 +3,22 @@ import z from '@deepseek-ai/schemastery';
 /** Memory kinds the model may distinguish when writing entries. */
 export declare const MEMORY_KINDS: readonly ["fact", "decision", "preference", "note"];
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
+/** Settings namespace registered with the harness settings service. */
+export declare const SETTINGS_NAMESPACE = "semantic-memory";
 export interface Config {
-    /** Embedding provider: local ONNX inference or an OpenAI-compatible API. */
-    readonly provider?: 'local' | 'api';
+    /**
+     * Embedding provider. Omit (or use 'auto') to select automatically:
+     * a non-empty apiKey means `api`, otherwise `local`. An explicit value
+     * overrides the automatic selection.
+     */
+    readonly provider?: 'local' | 'api' | 'auto';
     /** Local transformer model id (used when provider is `local`). */
     readonly localModel?: string;
     /** HuggingFace remote host for model downloads; use a mirror such as https://hf-mirror.com in restricted networks. */
     readonly remoteHost?: string;
     /** OpenAI-compatible embeddings endpoint base URL (used when provider is `api`). */
     readonly apiBase?: string;
-    /** API key for the embeddings endpoint (used when provider is `api`). */
+    /** API key for the embeddings endpoint. When non-empty and provider is not explicitly `local`, the api provider is used. */
     readonly apiKey?: string;
     /** Embedding model name sent to the API (used when provider is `api`). */
     readonly apiModel?: string;
@@ -50,7 +56,9 @@ export interface ResolvedConfig {
     readonly summarizeMaxTokens: number;
     readonly summarizeTemperature: number;
 }
-/** Schemastery schema for Loader defaults and configuration docs. */
+/** Schemastery schema for Loader defaults, settings registration, and config docs. */
 export declare const Config: z<Config>;
-/** Resolve the config against process environment defaults. */
+/** Resolve the config against environment defaults; provider auto-selects. */
 export declare function resolveConfig(config: Config): ResolvedConfig;
+/** Equality over the fields that force an embedding-provider rebuild. */
+export declare function embeddingIdentityChanged(left: ResolvedConfig, right: ResolvedConfig): boolean;

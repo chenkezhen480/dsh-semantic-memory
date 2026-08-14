@@ -8,7 +8,7 @@
  *
  * @module dsh-plugin-semantic-memory/embedding
  */
-import type { ResolvedConfig } from './config.ts';
+import { type ResolvedConfig } from './config.ts';
 export interface EmbeddingProvider {
     readonly dimension: number | undefined;
     embed(texts: readonly string[], signal?: AbortSignal): Promise<ReadonlyArray<readonly number[]>>;
@@ -16,12 +16,19 @@ export interface EmbeddingProvider {
 }
 /** Lazy wrapper that picks the configured provider and single-flights startup. */
 export declare class EmbeddingService {
-    private readonly config;
     private provider;
     private starting;
     private readonly cache;
     private disposed;
+    private config;
     constructor(config: ResolvedConfig);
+    /**
+     * Apply a configuration change. When the embedding identity (provider,
+     * model, endpoint, or key) changed, the current provider is disposed and
+     * rebuilt lazily on the next embed; the vector cache is dropped because the
+     * new provider may use a different dimension or space.
+     */
+    setConfig(next: ResolvedConfig): void;
     embed(texts: readonly string[], signal?: AbortSignal): Promise<ReadonlyArray<readonly number[]>>;
     get dimension(): number | undefined;
     dispose(): Promise<void>;

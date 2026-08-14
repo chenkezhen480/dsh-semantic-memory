@@ -6,16 +6,23 @@ import z from '@deepseek-ai/schemastery'
 export const MEMORY_KINDS = ['fact', 'decision', 'preference', 'note'] as const
 export type MemoryKind = (typeof MEMORY_KINDS)[number]
 
+/** Settings namespace registered with the harness settings service. */
+export const SETTINGS_NAMESPACE = 'semantic-memory'
+
 export interface Config {
-  /** Embedding provider: local ONNX inference or an OpenAI-compatible API. */
-  readonly provider?: 'local' | 'api'
+  /**
+   * Embedding provider. Omit (or use 'auto') to select automatically:
+   * a non-empty apiKey means `api`, otherwise `local`. An explicit value
+   * overrides the automatic selection.
+   */
+  readonly provider?: 'local' | 'api' | 'auto'
   /** Local transformer model id (used when provider is `local`). */
   readonly localModel?: string
   /** HuggingFace remote host for model downloads; use a mirror such as https://hf-mirror.com in restricted networks. */
   readonly remoteHost?: string
   /** OpenAI-compatible embeddings endpoint base URL (used when provider is `api`). */
   readonly apiBase?: string
-  /** API key for the embeddings endpoint (used when provider is `api`). */
+  /** API key for the embeddings endpoint. When non-empty and provider is not explicitly `local`, the api provider is used. */
   readonly apiKey?: string
   /** Embedding model name sent to the API (used when provider is `api`). */
   readonly apiModel?: string
@@ -55,13 +62,13 @@ export interface ResolvedConfig {
   readonly summarizeTemperature: number
 }
 
-/** Schemastery schema for Loader defaults and configuration docs. */
+/** Schemastery schema for Loader defaults, settings registration, and config docs. */
 export const Config: z<Config> = z.object({
-  provider: z.union([z.const('local'), z.const('api')]).default('local'),
+  provider: z.union([z.const('local'), z.const('api'), z.const('auto')]).default('auto'),
   localModel: z.string().default('Xenova/bge-small-zh-v1.5'),
   remoteHost: z.string().default('https://huggingface.co'),
   apiBase: z.string().default('https://api.siliconflow.cn/v1'),
-  apiKey: z.string().default(''),
+  apiKey: z.string().role('secret').default(''),
   apiModel: z.string().default('BAAI/bge-m3'),
   memoryPath: z.string().default(''),
   promptTopK: z.number().step(1).min(0).max(20).default(3),
@@ -76,19 +83,20 @@ export const Config: z<Config> = z.object({
 
 const DEFAULT_MEMORY_FILE = 'memories/memories.jsonl'
 
-/** Resolve the config against process environment defaults. */
+/** Resolve the config against environment defaults; provider auto-selects. */
 export function resolveConfig(config: Config): ResolvedConfig {
-  const provider = config.provider ?? 'local'
-  if (provider !== 'local' && provider !== 'api') {
-    throw new TypeError(`semantic-memory: provider must be "local" or "api", got ${String(provider)}`)
-  }
   const apiKey = config.apiKey ?? ''
-  const memoryPath = (config.memoryPath ?? '').length > 0
-    ? config.memoryPath!
-    : joinDshHome(DEFAULT_MEMORY_FILE)
+  const explicit = config.provider ?? 'auto'
+  if (explicit !== 'local' && explicit !== 'api' && explicit !== 'auto') {
+    throw new TypeError(`semantic-memory: provider must be "local", "api", or "auto", got ${String(explicit)}`)
+  }
+  const provider = explicit === 'auto' ? (apiKey.length > 0 ? 'api' : 'local') : explicit
   if (provider === 'api' && apiKey.length === 0) {
     throw new TypeError('semantic-memory: api provider requires apiKey')
   }
+  const memoryPath = (config.memoryPath ?? '').length > 0
+    ? config.memoryPath!
+    : joinDshHome(DEFAULT_MEMORY_FILE)
   return {
     provider,
     localModel: config.localModel ?? 'Xenova/bge-small-zh-v1.5',
@@ -106,6 +114,19 @@ export function resolveConfig(config: Config): ResolvedConfig {
     summarizeMaxTokens: config.summarizeMaxTokens ?? 400,
     summarizeTemperature: config.summarizeTemperature ?? 0.2,
   }
+}
+
+/** Equality over the fields that force an embedding-provider rebuild. */
+export function embeddingIdentityChanged(
+  left: ResolvedConfig,
+  right: ResolvedConfig,
+): boolean {
+  return left.provider !== right.provider
+    || left.localModel !== right.localModel
+    || left.remoteHost !== right.remoteHost
+    || left.apiBase !== right.apiBase
+    || left.apiKey !== right.apiKey
+    || left.apiModel !== right.apiModel
 }
 
 function joinDshHome(relative: string): string {

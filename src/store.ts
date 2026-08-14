@@ -72,7 +72,8 @@ export class MemoryStore {
   private loaded = false
   private persistChain: Promise<void> = Promise.resolve()
   private tempCounter = 0
-  private readonly halfLifeMs: number
+  /** Decay half-life; mutable so settings hot-reloads can move it. */
+  halfLifeMs: number
 
   constructor(
     private readonly path: string,
