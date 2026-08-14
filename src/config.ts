@@ -77,7 +77,7 @@ export const Config: z<Config> = z.object({
   halfLifeMs: z.number().min(1).default(30 * 24 * 60 * 60 * 1000),
   autoSummarizeEvery: z.number().step(1).min(0).max(100).default(5),
   summarizeWindow: z.number().step(1).min(1).max(100).default(12),
-  summarizeMaxTokens: z.number().step(1).min(64).max(2000).default(400),
+  summarizeMaxTokens: z.number().step(1).min(64).max(4000).default(800),
   summarizeTemperature: z.number().min(0).max(2).default(0.2),
 })
 
@@ -111,7 +111,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
     halfLifeMs: config.halfLifeMs ?? 30 * 24 * 60 * 60 * 1000,
     autoSummarizeEvery: config.autoSummarizeEvery ?? 5,
     summarizeWindow: config.summarizeWindow ?? 12,
-    summarizeMaxTokens: config.summarizeMaxTokens ?? 400,
+    summarizeMaxTokens: config.summarizeMaxTokens ?? 800,
     summarizeTemperature: config.summarizeTemperature ?? 0.2,
   }
 }

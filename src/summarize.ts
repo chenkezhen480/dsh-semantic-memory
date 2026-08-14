@@ -66,7 +66,9 @@ const SUMMARY_SYSTEM_PROMPT = [
   '- At most 5 items; empty array when nothing is worth remembering.',
 ].join('\n')
 
-const SUMMARY_STOP = ['\n\n']
+// No stop sequence: the deployment default model is a reasoning model whose
+// answer often starts with newlines, and `\n\n` would truncate the JSON before
+// it begins. Let the model finish and rely on parseSummary's tolerance.
 
 export class AutoSummarizer {
   private readonly counts = new Map<string, number>()
@@ -145,7 +147,6 @@ export class AutoSummarizer {
       }],
       temperature: this.temperature,
       maxTokens: this.maxTokens,
-      stop: SUMMARY_STOP,
     }))
     const items = parseSummary(text)
     if (items.length === 0) return
