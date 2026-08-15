@@ -1,13 +1,13 @@
-# Plugin-owned patch layer, activated automatically when the package is
-# installed with `dsh plugin --profile web add dsh-plugin-semantic-memory`
-# (the `dsh.bundle.patch` declaration joins this layer to the profile).
+# 插件自带的补丁层，安装时自动生效：
+# `dsh plugin --profile web add dsh-plugin-semantic-memory`
+# （package.json 中的 dsh.bundle.patch 声明会把本层加入 profile 的 bundles）。
 #
-# Development mode: this file also carries the deployment defaults (the
-# values this package is used with). In file: linked installs the loader
-# reads this file live — change it and restart dsh web, no reinstall needed.
-# For published distribution, keep deployment-specific values out of this
-# file and let users override via settings.yaml (`semantic-memory:` section)
-# or their own profile patch rows, which always outrank this layer.
+# 开发模式：本文件同时承载部署默认配置（当前使用该包时的取值）。
+# 以 file: 链接安装时，loader 每次启动都会实时读取本文件——
+# 改动后重启 dsh web 即生效，无需重新安装。
+# 若用于公开发布，请把部署相关取值移出本文件，让用户通过
+# settings.yaml（semantic-memory: 段）或自己的 profile patch 覆盖，
+# 那些层始终优先于本层。
 - insert:
     - id: semantic-memory
       name: 'dsh-plugin-semantic-memory'
