@@ -6,6 +6,11 @@ A `dsh-plugin` (Cordis plugin) that gives the model a persistent, embedding-base
 memory across sessions — unlike the harness's built-in `session_query` (literal
 FTS5), this store retrieves by *meaning*.
 
+**Zero-config out of the box**: install, restart, and start a new session. The
+local embedding model downloads itself on first use (~100 MB); the four tools,
+per-question recall, and 5-turn auto-summarization all work with defaults. You
+only configure when you want something different (see [Configuration](#configuration)).
+
 ## Features
 
 - **Cross-session semantic memory** — facts, decisions, preferences, and notes
