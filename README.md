@@ -101,7 +101,7 @@ carries a `## Long-term memory` section once memories exist.
 | Trigger | Behavior |
 |---|---|
 | Every user message | Asynchronous embedding + search; the freshest per-session hits are injected into the next prompt assembly (`## Long-term memory (recalled for your current question)`) |
-| Every N user messages (default 5) | The harness LLM distills the recent transcript into memory entries, written with the `auto` tag |
+| Every N user messages (default 5) | The harness LLM distills **only the messages since the last summary** (per-session seq cursor — no re-digesting, nothing skipped) into memory entries, written with the `auto` tag; the cadence can be set with the `DSH_SEMANTIC_MEMORY_SUMMARIZE_EVERY` environment variable (`0` disables, overrides the config document) |
 | Prompt assembly, no fresh recall | Strongest memories (importance × recency × access) injected as fallback |
 
 ### Where the data lives
@@ -136,7 +136,7 @@ carries a `## Long-term memory` section once memories exist.
 | `maxSearchResults` | `10` | Default `memory_search` hit cap. |
 | `minScore` | `0.35` | Default minimum relevance for search hits. |
 | `halfLifeMs` | 30 days | Memory strength half-life. |
-| `autoSummarizeEvery` | `5` | Auto-summarize every N user messages (0 disables; needs llm + agentDefaultModel). |
+| `autoSummarizeEvery` | `5` | Auto-summarize every N user messages (0 disables; needs llm + agentDefaultModel). The `DSH_SEMANTIC_MEMORY_SUMMARIZE_EVERY` env var overrides this (0..100). |
 | `summarizeWindow` | `12` | Most recent messages included in one auto-summary. |
 | `summarizeMaxTokens` | `400` | Token budget for the summary call. |
 | `summarizeTemperature` | `0.2` | Sampling temperature for the summary call. |

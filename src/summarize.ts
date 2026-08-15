@@ -74,6 +74,8 @@ const SUMMARY_SYSTEM_PROMPT = [
 export class AutoSummarizer {
   private readonly counts = new Map<string, number>()
   private readonly busy = new Set<string>()
+  /** Per-session seq cursor: events at or below this seq were already summarized. */
+  private readonly cursors = new Map<string, number>()
   private every: number
   private window: number
   private maxTokens: number
@@ -137,13 +139,24 @@ export class AutoSummarizer {
       console.error(`[semantic-memory] auto-summary skipped: llm=${llm === undefined ? 'missing' : 'ok'} defaultModel=${defaultModel === undefined ? 'missing' : 'ok'}`)
       return
     }
-    const transcript = extractTranscript(session.events, this.window)
+    const events = session.events ?? []
+    const maxSeq = lastMessageSeq(events)
+    if (maxSeq === undefined) {
+      console.error(`[semantic-memory] auto-summary skipped: no message events (events=${events.length})`)
+      return
+    }
+    const cursor = this.cursors.get(session.id) ?? -1
+    if (maxSeq <= cursor) {
+      console.log(`[semantic-memory] auto-summary skipped: no new messages since seq ${cursor}`)
+      return
+    }
+    const transcript = extractTranscript(events, this.window, cursor)
     if (transcript.length === 0) {
-      console.error(`[semantic-memory] auto-summary skipped: empty transcript (events=${session.events?.length ?? 0})`)
+      console.error(`[semantic-memory] auto-summary skipped: empty transcript (events=${events.length}, cursor=${cursor}, maxSeq=${maxSeq})`)
       return
     }
     const { provider, model, reasoningEffort } = defaultModel.currentSelection()
-    console.log(`[semantic-memory] auto-summary calling ${provider}/${model} (transcript ${transcript.length} chars)`)
+    console.log(`[semantic-memory] auto-summary calling ${provider}/${model} (seq ${cursor + 1}..${maxSeq}, transcript ${transcript.length} chars)`)
     const text = await collectText(llm.stream({
       provider,
       model,
@@ -161,13 +174,12 @@ export class AutoSummarizer {
     console.log(`[semantic-memory] auto-summary model output: ${JSON.stringify(text.slice(0, 300))}`)
     const items = parseSummary(text)
     if (items.length === 0) {
-      console.error('[semantic-memory] auto-summary: no items parsed from model output')
+      console.error('[semantic-memory] auto-summary: no items parsed from model output (cursor kept, will retry this range)')
       return
     }
     console.log(`[semantic-memory] auto-summary parsed ${items.length} items`)
     const vectors = await this.services.embeddings.embed(items.map(item => item.content))
-    const events = session.events ?? []
-    const last = events.length > 0 ? events[events.length - 1] as { seq?: number } : undefined
+    const last = events[events.length - 1] as { seq?: number } | undefined
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index]
       const vector = vectors[index]
@@ -182,16 +194,43 @@ export class AutoSummarizer {
         embedding: vector,
       })
     }
+    // Advance the cursor only after a successful write so a partial failure
+    // (e.g. one embedding rejected) retries the same range next time.
+    this.cursors.set(session.id, maxSeq)
+    console.log(`[semantic-memory] auto-summary done, cursor advanced to seq ${maxSeq}`)
   }
 }
 
-/** Recent user/assistant transcript as one text block. */
-export function extractTranscript(events: readonly unknown[] | undefined, window: number): string {
+/** Seq of the last user/assistant message event, or undefined when none. */
+export function lastMessageSeq(events: readonly unknown[] | undefined): number | undefined {
+  if (events === undefined) return undefined
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const record = events[index] as { type?: string; seq?: number }
+    if ((record.type === 'user/message' || record.type === 'assistant/message')
+      && typeof record.seq === 'number') {
+      return record.seq
+    }
+  }
+  return undefined
+}
+
+/**
+ * Recent user/assistant transcript as one text block, restricted to events
+ * newer than `afterSeq` (the per-session summarization cursor) and capped to
+ * the most recent `window` messages.
+ */
+export function extractTranscript(
+  events: readonly unknown[] | undefined,
+  window: number,
+  afterSeq = -1,
+): string {
   if (events === undefined || events.length === 0) return ''
   const lines: string[] = []
-  for (const event of events.slice(-window)) {
-    const record = event as { type?: string; data?: unknown }
+  const tail = events.slice(-window)
+  for (const event of tail) {
+    const record = event as { type?: string; seq?: number; data?: unknown }
     if (record.type !== 'user/message' && record.type !== 'assistant/message') continue
+    if (typeof record.seq !== 'number' || record.seq <= afterSeq) continue
     const text = extractMessageText(record.data)
     if (text.length === 0) continue
     lines.push(`${record.type === 'user/message' ? 'user' : 'assistant'}: ${text}`)

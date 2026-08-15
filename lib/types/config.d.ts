@@ -58,6 +58,14 @@ export interface ResolvedConfig {
 }
 /** Schemastery schema for Loader defaults, settings registration, and config docs. */
 export declare const Config: z<Config>;
+/**
+ * Environment variable for the auto-summarize cadence: a positive integer
+ * triggers every N user messages, `0` disables the feature. Takes precedence
+ * over the configuration document so users can tune it without editing files.
+ */
+export declare const AUTO_SUMMARIZE_EVERY_ENV = "DSH_SEMANTIC_MEMORY_SUMMARIZE_EVERY";
+/** Parse the env override: 0..100 integer, or undefined when absent/invalid. */
+export declare function summarizeEveryFromEnv(): number | undefined;
 /** Resolve the config against environment defaults; provider auto-selects. */
 export declare function resolveConfig(config: Config): ResolvedConfig;
 /** Equality over the fields that force an embedding-provider rebuild. */

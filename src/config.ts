@@ -83,6 +83,22 @@ export const Config: z<Config> = z.object({
 
 const DEFAULT_MEMORY_FILE = 'memories/memories.jsonl'
 
+/**
+ * Environment variable for the auto-summarize cadence: a positive integer
+ * triggers every N user messages, `0` disables the feature. Takes precedence
+ * over the configuration document so users can tune it without editing files.
+ */
+export const AUTO_SUMMARIZE_EVERY_ENV = 'DSH_SEMANTIC_MEMORY_SUMMARIZE_EVERY'
+
+/** Parse the env override: 0..100 integer, or undefined when absent/invalid. */
+export function summarizeEveryFromEnv(): number | undefined {
+  const raw = process.env[AUTO_SUMMARIZE_EVERY_ENV]
+  if (raw === undefined || raw.trim() === '') return undefined
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 0 || value > 100) return undefined
+  return value
+}
+
 /** Resolve the config against environment defaults; provider auto-selects. */
 export function resolveConfig(config: Config): ResolvedConfig {
   const apiKey = config.apiKey ?? ''
@@ -109,7 +125,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
     maxSearchResults: config.maxSearchResults ?? 10,
     minScore: config.minScore ?? 0.35,
     halfLifeMs: config.halfLifeMs ?? 30 * 24 * 60 * 60 * 1000,
-    autoSummarizeEvery: config.autoSummarizeEvery ?? 5,
+    autoSummarizeEvery: summarizeEveryFromEnv() ?? config.autoSummarizeEvery ?? 5,
     summarizeWindow: config.summarizeWindow ?? 12,
     summarizeMaxTokens: config.summarizeMaxTokens ?? 800,
     summarizeTemperature: config.summarizeTemperature ?? 0.2,

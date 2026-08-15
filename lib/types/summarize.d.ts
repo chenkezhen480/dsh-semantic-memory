@@ -57,6 +57,8 @@ export declare class AutoSummarizer {
     private readonly services;
     private readonly counts;
     private readonly busy;
+    /** Per-session seq cursor: events at or below this seq were already summarized. */
+    private readonly cursors;
     private every;
     private window;
     private maxTokens;
@@ -71,8 +73,14 @@ export declare class AutoSummarizer {
     private trigger;
     private summarize;
 }
-/** Recent user/assistant transcript as one text block. */
-export declare function extractTranscript(events: readonly unknown[] | undefined, window: number): string;
+/** Seq of the last user/assistant message event, or undefined when none. */
+export declare function lastMessageSeq(events: readonly unknown[] | undefined): number | undefined;
+/**
+ * Recent user/assistant transcript as one text block, restricted to events
+ * newer than `afterSeq` (the per-session summarization cursor) and capped to
+ * the most recent `window` messages.
+ */
+export declare function extractTranscript(events: readonly unknown[] | undefined, window: number, afterSeq?: number): string;
 /** Extract text blocks from a user/assistant message payload. */
 export declare function extractMessageText(data: unknown): string;
 /** Collect text-delta chunks from a stream. */
