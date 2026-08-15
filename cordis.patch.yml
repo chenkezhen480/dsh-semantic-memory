@@ -1,0 +1,8 @@
+# Plugin-owned patch layer, activated automatically when the package is
+# installed with `dsh plugin --profile web add dsh-plugin-semantic-memory`
+# (the `dsh.bundle.patch` declaration joins this layer to the profile).
+# No config here: every knob has a schema default, and users can override
+# via settings.yaml (`semantic-memory:` section) or their own patch rows.
+- insert:
+    - id: semantic-memory
+      name: 'dsh-plugin-semantic-memory'
