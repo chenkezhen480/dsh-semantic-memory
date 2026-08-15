@@ -1,8 +1,18 @@
 # Plugin-owned patch layer, activated automatically when the package is
 # installed with `dsh plugin --profile web add dsh-plugin-semantic-memory`
 # (the `dsh.bundle.patch` declaration joins this layer to the profile).
-# No config here: every knob has a schema default, and users can override
-# via settings.yaml (`semantic-memory:` section) or their own patch rows.
+#
+# Development mode: this file also carries the deployment defaults (the
+# values this package is used with). In file: linked installs the loader
+# reads this file live — change it and restart dsh web, no reinstall needed.
+# For published distribution, keep deployment-specific values out of this
+# file and let users override via settings.yaml (`semantic-memory:` section)
+# or their own profile patch rows, which always outrank this layer.
 - insert:
     - id: semantic-memory
       name: 'dsh-plugin-semantic-memory'
+      config:
+        remoteHost: https://hf-mirror.com
+        promptTopK: 3
+        minScore: 0.35
+        autoSummarizeEvery: 5
