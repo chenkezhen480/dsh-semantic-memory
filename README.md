@@ -1,5 +1,7 @@
 # dsh-plugin-semantic-memory
 
+**中文**（[README.zh.md](README.zh.md)，推荐） | [English](README.md)
+
 Semantic long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
 A `dsh-plugin` (Cordis plugin) that gives the model a persistent, embedding-based
@@ -152,7 +154,7 @@ carries a `## Long-term memory` section once memories exist.
 | `halfLifeMs` | 30 days | Memory strength half-life. |
 | `autoSummarizeEvery` | `5` | Auto-summarize every N user messages (0 disables; needs llm + agentDefaultModel). The `DSH_SEMANTIC_MEMORY_SUMMARIZE_EVERY` env var overrides this (0..100). |
 | `summarizeWindow` | `12` | Most recent messages included in one auto-summary. |
-| `summarizeMaxTokens` | `400` | Token budget for the summary call. |
+| `summarizeMaxTokens` | `800` | Token budget for the summary call. |
 | `summarizeTemperature` | `0.2` | Sampling temperature for the summary call. |
 
 ## Memory model
