@@ -48,22 +48,31 @@ only configure when you want something different (see [Configuration](#configura
 
 ## Install into a DSH profile
 
-1. Build this package (`npm install && npm run build`).
-2. Add it to your profile (e.g. `~/.dsh/profiles/web`):
-   - `package.json` `dependencies`: `"dsh-plugin-semantic-memory": "file:C:/projects/dsh-embedding"`
-   - `cordis.patch.yml` — new entries must be **inserted** (a bare `- id:` row
-     only overrides an existing bundle id and is silently ignored):
-     ```yaml
-     - insert:
-         - id: semantic-memory
-           name: 'dsh-plugin-semantic-memory'
-           config:
-             remoteHost: https://hf-mirror.com
-             promptTopK: 3
-             autoSummarizeEvery: 5
-     ```
-   - Leave `provider` unset: selection is automatic (see below).
-3. `pnpm install` in the profile directory, then restart `dsh web`.
+**Official one-liner** (the package ships an in-package `cordis.patch.yml`
+declared via `dsh.bundle.patch`, so `dsh plugin add` mounts it automatically —
+no manual profile edits):
+
+```sh
+dsh plugin --profile web add dsh-plugin-semantic-memory
+# or from a local checkout / tarball:
+dsh plugin --profile web add file:C:/path/to/dsh-embedding
+```
+
+Then restart `dsh web` and start a new session. All knobs have schema
+defaults; override them in `~/.dsh/settings.yaml` under `semantic-memory:`
+(hot-reloaded, no restart) or in your own patch rows.
+
+Manual equivalent (for older installs): add the dependency to the profile's
+`package.json`, insert a mount row — new entries must be **inserted** (a bare
+`- id:` row only overrides an existing bundle id and is silently ignored):
+
+```yaml
+- insert:
+    - id: semantic-memory
+      name: 'dsh-plugin-semantic-memory'
+```
+
+Leave `provider` unset: selection is automatic (see below).
 
 ## Usage
 
