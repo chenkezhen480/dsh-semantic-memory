@@ -24,6 +24,21 @@ test('resolveConfig auto-selects api when apiKey is set', () => {
   assert.equal(forcedApi.provider, 'api')
 })
 
+test('resolveConfig mode selects local or cloud deployment', () => {
+  // mode: local forces the local model even with an apiKey.
+  const local = resolveConfig({ mode: 'local', apiKey: 'sk-test' })
+  assert.equal(local.provider, 'local')
+
+  // mode: cloud forces the API provider.
+  const cloud = resolveConfig({ mode: 'cloud', apiKey: 'sk-test' })
+  assert.equal(cloud.provider, 'api')
+
+  // mode: cloud without a key is rejected loudly.
+  assert.throws(() => resolveConfig({ mode: 'cloud' }), /api provider requires apiKey/)
+
+  // Unset mode keeps the automatic selection (covered by the first test).
+})
+
 test('summarizeEveryFromEnv parses the env override (0 disables)', () => {
   const key = AUTO_SUMMARIZE_EVERY_ENV
   const previous = process.env[key]

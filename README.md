@@ -61,8 +61,11 @@ dsh plugin --profile web add file:C:/path/to/dsh-embedding
 ```
 
 Then restart `dsh web` and start a new session. All knobs have schema
-defaults; override them in `~/.dsh/settings.yaml` under `semantic-memory:`
-(hot-reloaded, no restart) or in your own patch rows.
+defaults; the in-package `cordis.patch.yml` is the deployment config source —
+**in-package config overrides outer layers** (settings.yaml and user patch rows
+only fill keys the package does not declare, they do not override it). With a
+`file:` linked install the loader reads that file live on every boot: edit it
+and restart `dsh web`, no reinstall needed.
 
 Manual equivalent (for older installs): add the dependency to the profile's
 `package.json`, insert a mount row — new entries must be **inserted** (a bare
@@ -74,25 +77,31 @@ Manual equivalent (for older installs): add the dependency to the profile's
       name: 'dsh-plugin-semantic-memory'
 ```
 
-Leave `provider` unset: selection is automatic (see below).
+Leave `mode`/`provider` unset unless you need an explicit switch: selection is
+automatic (see below).
 
 ## Usage
 
-### Provider selection (automatic)
+### Provider selection
 
-The embedding provider is chosen from the configuration object alone — no
-explicit switch needed:
+The embedding provider is chosen by `mode` (explicit deployment switch), falling
+back to the automatic selection:
 
 | Configuration | Provider |
 |---|---|
-| `apiKey` present (non-empty) | **API** (OpenAI-compatible `/embeddings` endpoint) |
-| no `apiKey` | **local** (ONNX via `@huggingface/transformers`, offline) |
+| `mode: 'cloud'` | **API** (OpenAI-compatible `/embeddings` endpoint); requires `apiKey` |
+| `mode: 'local'` | **local** (ONNX via `@huggingface/transformers`, offline), even with an `apiKey` set |
+| no `mode`, `apiKey` present (non-empty) | **API** |
+| no `mode`, no `apiKey` | **local** |
 | `provider: 'local'` (explicit) | local, even with an `apiKey` set |
 | `provider: 'api'` (explicit) | API; requires `apiKey` |
 
-Switching is just filling or clearing `apiKey` — a restart is only needed for
-the patch file; the settings document (`~/.dsh/settings.yaml`, `semantic-memory:`
-section) hot-reloads without one. The first local embed downloads the model
+Switching deployment mode is editing `mode` in the in-package
+`cordis.patch.yml` — **in-package config overrides outer layers** (settings.yaml
+or user profile patch rows only fill keys the package does not declare; they do
+not override it). A restart is needed after patch-file changes; the settings
+document (`~/.dsh/settings.yaml`, `semantic-memory:` section) hot-reloads for
+the keys it is allowed to supply. The first local embed downloads the model
 (~100 MB, cached in `~/.cache/huggingface`; use `remoteHost` for a mirror).
 
 ### Verify the plugin is live
@@ -124,7 +133,9 @@ carries a `## Long-term memory` section once memories exist.
 
 - Store: `$DSH_HOME/memories/memories.jsonl` (one JSON line per entry, vectors
   included; edit/backup freely).
-- Settings: `~/.dsh/settings.yaml` under `semantic-memory:` (hot-reloaded).
+- Settings: in-package `cordis.patch.yml` (deployment source of truth — package
+  config overrides outer layers); `~/.dsh/settings.yaml` under `semantic-memory:`
+  only fills keys the package does not declare (hot-reloaded).
 
 ### Troubleshooting
 
@@ -132,8 +143,9 @@ carries a `## Long-term memory` section once memories exist.
   new one.
 - **First local embed is slow / fails** — the model downloads on first use; set
   `remoteHost: https://hf-mirror.com` in restricted networks.
-- **`api` provider errors** — confirm `apiKey` is set and `apiBase` points at an
-  OpenAI-compatible endpoint (a `/v1` base gets `/embeddings` appended).
+- **`api` provider errors** — confirm `mode`/`apiKey` are set and `apiBase`
+  points at an OpenAI-compatible endpoint (a `/v1` base gets `/embeddings`
+  appended).
 - **Auto-summary never fires** — it needs the `llm` and `agentDefaultModel`
   services (present in the standard web profile) and `autoSummarizeEvery > 0`.
 
@@ -141,7 +153,8 @@ carries a `## Long-term memory` section once memories exist.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `provider` | `auto` | `auto` selects by apiKey (non-empty → `api`, else `local`); explicit `local`/`api` overrides. |
+| `mode` | *(unset)* | Deployment switch: `local` forces the local model, `cloud` forces the API (requires `apiKey`). Unset keeps the automatic selection. |
+| `provider` | `auto` | `auto` selects by apiKey (non-empty → `api`, else `local`); explicit `local`/`api` overrides. An explicit `mode` overrides both. |
 | `localModel` | `Xenova/bge-small-zh-v1.5` | Local transformer model id. |
 | `remoteHost` | `https://huggingface.co` | Model download host; set `https://hf-mirror.com` in restricted networks. |
 | `apiBase` | `https://api.siliconflow.cn/v1` | API base URL (an `/embeddings` route is appended). |

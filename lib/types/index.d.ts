@@ -10,11 +10,12 @@
  * system-prompt assembly, and auto-summarizes conversations every N turns.
  *
  * Configuration flows through the harness settings service when available:
- * the `semantic-memory` namespace layers schema defaults, the composition
- * (cordis patch) base, and the user document (`$DSH_HOME/settings.yaml`,
- * editable from the web settings card). Provider selection is automatic:
- * a non-empty `apiKey` uses the API, otherwise the local model. Settings
- * changes hot-reload without a restart.
+ * the `semantic-memory` namespace layers the user document
+ * (`$DSH_HOME/settings.yaml`) UNDER the composition (cordis patch) config —
+ * in-package config overrides outer layers (包内覆盖外层). Provider selection
+ * is `mode`-driven (`local` / `cloud`) or automatic: a non-empty `apiKey`
+ * uses the API, otherwise the local model. Settings changes hot-reload
+ * without a restart.
  *
  * @module dsh-plugin-semantic-memory
  */

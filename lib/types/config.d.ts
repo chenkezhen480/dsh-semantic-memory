@@ -7,9 +7,15 @@ export type MemoryKind = (typeof MEMORY_KINDS)[number];
 export declare const SETTINGS_NAMESPACE = "semantic-memory";
 export interface Config {
     /**
+     * Deployment mode. `local` forces the ONNX model, `cloud` forces the
+     * OpenAI-compatible API (apiKey required). Omit to keep the automatic
+     * selection (a non-empty apiKey means `api`, otherwise `local`).
+     */
+    readonly mode?: 'local' | 'cloud';
+    /**
      * Embedding provider. Omit (or use 'auto') to select automatically:
      * a non-empty apiKey means `api`, otherwise `local`. An explicit value
-     * overrides the automatic selection.
+     * overrides the automatic selection; an explicit `mode` overrides both.
      */
     readonly provider?: 'local' | 'api' | 'auto';
     /** Local transformer model id (used when provider is `local`). */

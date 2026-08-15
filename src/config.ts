@@ -11,9 +11,15 @@ export const SETTINGS_NAMESPACE = 'semantic-memory'
 
 export interface Config {
   /**
+   * Deployment mode. `local` forces the ONNX model, `cloud` forces the
+   * OpenAI-compatible API (apiKey required). Omit to keep the automatic
+   * selection (a non-empty apiKey means `api`, otherwise `local`).
+   */
+  readonly mode?: 'local' | 'cloud'
+  /**
    * Embedding provider. Omit (or use 'auto') to select automatically:
    * a non-empty apiKey means `api`, otherwise `local`. An explicit value
-   * overrides the automatic selection.
+   * overrides the automatic selection; an explicit `mode` overrides both.
    */
   readonly provider?: 'local' | 'api' | 'auto'
   /** Local transformer model id (used when provider is `local`). */
@@ -64,6 +70,7 @@ export interface ResolvedConfig {
 
 /** Schemastery schema for Loader defaults, settings registration, and config docs. */
 export const Config: z<Config> = z.object({
+  mode: z.union([z.const('local'), z.const('cloud')]),
   provider: z.union([z.const('local'), z.const('api'), z.const('auto')]).default('auto'),
   localModel: z.string().default('Xenova/bge-small-zh-v1.5'),
   remoteHost: z.string().default('https://huggingface.co'),
@@ -102,11 +109,17 @@ export function summarizeEveryFromEnv(): number | undefined {
 /** Resolve the config against environment defaults; provider auto-selects. */
 export function resolveConfig(config: Config): ResolvedConfig {
   const apiKey = config.apiKey ?? ''
+  const mode = config.mode
   const explicit = config.provider ?? 'auto'
   if (explicit !== 'local' && explicit !== 'api' && explicit !== 'auto') {
     throw new TypeError(`semantic-memory: provider must be "local", "api", or "auto", got ${String(explicit)}`)
   }
-  const provider = explicit === 'auto' ? (apiKey.length > 0 ? 'api' : 'local') : explicit
+  // Deployment mode wins when set: `cloud` forces the API provider,
+  // `local` forces the local model. Otherwise provider auto-selects by apiKey.
+  const provider = mode === 'cloud' ? 'api'
+    : mode === 'local' ? 'local'
+    : explicit === 'auto' ? (apiKey.length > 0 ? 'api' : 'local')
+    : explicit
   if (provider === 'api' && apiKey.length === 0) {
     throw new TypeError('semantic-memory: api provider requires apiKey')
   }

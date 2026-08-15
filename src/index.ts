@@ -10,11 +10,12 @@
  * system-prompt assembly, and auto-summarizes conversations every N turns.
  *
  * Configuration flows through the harness settings service when available:
- * the `semantic-memory` namespace layers schema defaults, the composition
- * (cordis patch) base, and the user document (`$DSH_HOME/settings.yaml`,
- * editable from the web settings card). Provider selection is automatic:
- * a non-empty `apiKey` uses the API, otherwise the local model. Settings
- * changes hot-reload without a restart.
+ * the `semantic-memory` namespace layers the user document
+ * (`$DSH_HOME/settings.yaml`) UNDER the composition (cordis patch) config —
+ * in-package config overrides outer layers (包内覆盖外层). Provider selection
+ * is `mode`-driven (`local` / `cloud`) or automatic: a non-empty `apiKey`
+ * uses the API, otherwise the local model. Settings changes hot-reload
+ * without a restart.
  *
  * @module dsh-plugin-semantic-memory
  */
@@ -123,23 +124,26 @@ export function apply(ctx: Context, config: ConfigValue): void {
   }
   ensureSummarizer()
 
-  // Settings integration: layer the user document over the composition base
-  // and hot-reload on every commit. Without a settings provider the plugin
-  // keeps resolving the composition config alone.
+  // Settings integration: the user document (`settings.yaml`) layers UNDER
+  // the composition (cordis patch) config — in-package config overrides outer
+  // layers (包内覆盖外层), the user document only fills keys the composition
+  // does not declare. Changes hot-reload on every commit. Without a settings
+  // provider the plugin keeps resolving the composition config alone.
   const settings = ctx.get('settings') as unknown as SettingsLike | undefined
   if (settings !== undefined) {
-    const scope = settings.register(SETTINGS_NAMESPACE, Config, { base: config })
+    const scope = settings.register(SETTINGS_NAMESPACE, Config)
+    const mergeUnder = (stored: ConfigValue): ConfigValue => ({ ...stored, ...config })
     const stored = scope.get()
     if (stored !== undefined) {
       try {
-        applyResolved(resolveConfig(stored as ConfigValue))
+        applyResolved(resolveConfig(mergeUnder(stored as ConfigValue)))
       } catch (error) {
         ctx.logger.warn(`semantic-memory: stored settings rejected: ${String(error)}`)
       }
     }
     ctx.effect(() => scope.watch((next) => {
       try {
-        applyResolved(resolveConfig(next as ConfigValue))
+        applyResolved(resolveConfig(mergeUnder(next as ConfigValue)))
         ctx.logger.info('semantic-memory: settings reloaded (provider=%s)', resolved.provider)
       } catch (error) {
         ctx.logger.warn(`semantic-memory: settings update rejected: ${String(error)}`)

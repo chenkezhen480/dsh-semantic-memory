@@ -2,11 +2,11 @@
 
 [English](README.md) | **中文**
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供语义长期记忆的插件（`dsh-plugin`，即 Cordis 插件）。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供向量长期记忆的插件（`dsh-plugin`，即 Cordis 插件）。
 
 它让模型拥有跨会话的持久记忆，并按**语义**检索——不同于内置 `session_query` 的字面全文匹配（FTS5），本插件按"含义"召回。
 
-**零配置开箱即用**：安装 → 重启 → 开新会话即可。本地 embedding 模型首次使用时自动下载（约 100 MB）；四个工具、按问题主动召回、每 5 轮自动总结全部默认开启。只有想调整行为时才需要配置（见[配置](#配置)）。
+**零配置开箱即用**：安装 → 重启 → 开新会话即可。本地 embedding 模型首次使用时自动下载（约 100 MB）也可以选择自己配置云端API；四个工具、按问题主动召回、每 5 轮自动总结全部默认开启。只有想调整行为时才需要配置（见[配置](#配置)）。
 
 ## 功能特性
 
@@ -35,7 +35,7 @@ dsh plugin --profile web add dsh-plugin-semantic-memory
 dsh plugin --profile web add file:C:/path/to/dsh-embedding
 ```
 
-然后**重启 `dsh web`** 并开新会话。所有参数都有 schema 默认值；可在 `~/.dsh/settings.yaml` 的 `semantic-memory:` 段覆盖（热更新，免重启），也可写在 profile 的 patch 行里。
+然后**重启 `dsh web`** 并开新会话。所有参数都有 schema 默认值；**包内配置覆盖外层配置**——部署配置源是插件包内的 `cordis.patch.yml`，`~/.dsh/settings.yaml` 的 `semantic-memory:` 段与用户 profile patch 只会补充包内未声明的键，不会覆盖包内取值。以 `file:` 链接安装时 loader 每次启动实时读取该文件：改完重启即生效，无需重新安装。
 
 手动安装的等价做法（老版本）：把依赖加进 profile 的 `package.json`，并插入挂载行——**新条目必须用 `insert`**（裸 `- id:` 只覆盖已存在的 bundle id，会被静默忽略）：
 
@@ -45,22 +45,24 @@ dsh plugin --profile web add file:C:/path/to/dsh-embedding
       name: 'dsh-plugin-semantic-memory'
 ```
 
-不要写 `provider`：自动选择（见下）。
+不写 `mode` / `provider`：自动选择（见下）。
 
 ## 使用方法
 
-### Provider 自动选择
+### Provider 选择
 
-只用配置对象即可决定 embedding 来源，无需显式开关：
+`mode` 是显式的部署开关，未设置时回退到自动选择：
 
 | 配置情况 | 使用的 Provider |
 |---|---|
-| 填了 `apiKey`（非空） | **API**（OpenAI 兼容 `/embeddings` 接口） |
-| 没有 `apiKey` | **本地**（ONNX，`@huggingface/transformers`，离线） |
+| `mode: 'cloud'` | **API**（OpenAI 兼容 `/embeddings` 接口；必须配 `apiKey`） |
+| `mode: 'local'` | **本地**（ONNX，`@huggingface/transformers`，离线；即使有 `apiKey`） |
+| 未写 `mode`，填了 `apiKey`（非空） | **API** |
+| 未写 `mode`，没有 `apiKey` | **本地** |
 | 显式 `provider: 'local'` | 本地（即使有 `apiKey`） |
 | 显式 `provider: 'api'` | API（必须配 `apiKey`） |
 
-切换 = 填/清 `apiKey`。改 patch 文件需重启；settings.yaml 热更新免重启。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
+切换部署模式 = 改包内 `cordis.patch.yml` 的 `mode`（`local` ↔ `cloud`）并重启 `dsh web`。**包内配置覆盖外层配置**：settings.yaml 与用户 profile patch 只补充包内未声明的键，不会覆盖包内取值。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
 
 ### 验证插件已生效
 
@@ -84,20 +86,21 @@ dsh plugin --profile web add file:C:/path/to/dsh-embedding
 ### 数据位置
 
 - 记忆库：`$DSH_HOME/memories/memories.jsonl`（每条一行 JSON，含向量；可自由编辑/备份）
-- 配置：`~/.dsh/settings.yaml` 的 `semantic-memory:` 段（热更新）
+- 配置：包内 `cordis.patch.yml`（部署配置源，包内覆盖外层）；`~/.dsh/settings.yaml` 的 `semantic-memory:` 段只补充包内未声明的键（热更新）
 
 ### 常见问题
 
 - **会话里没有 memory_* 工具** —— 该会话创建早于插件安装；请开新会话
 - **首次本地嵌入慢 / 失败** —— 首次使用要下载模型；网络受限时配置 `remoteHost: https://hf-mirror.com`
-- **`api` 报错** —— 确认 `apiKey` 已填、`apiBase` 指向 OpenAI 兼容端点（`/v1` 结尾的地址会自动追加 `/embeddings`）
+- **`api` 报错** —— 确认 `mode` / `apiKey` 已配置、`apiBase` 指向 OpenAI 兼容端点（`/v1` 结尾的地址会自动追加 `/embeddings`）
 - **自动总结从不触发** —— 需要 `llm` 与 `agentDefaultModel` 服务（标准 web profile 自带），且 `autoSummarizeEvery > 0`
 
 ## 配置
 
 | 键 | 默认值 | 含义 |
 |---|---|---|
-| `provider` | `auto` | `auto`：按 apiKey 自动选择（非空 → `api`，否则 `local`）；显式 `local`/`api` 覆盖 |
+| `mode` | （未设置） | 部署开关：`local` 强制本地模型；`cloud` 强制云端 API（必须配 `apiKey`）。未设置时自动选择 |
+| `provider` | `auto` | `auto`：按 apiKey 自动选择（非空 → `api`，否则 `local`）；显式 `local`/`api` 覆盖。显式 `mode` 优先于两者 |
 | `localModel` | `Xenova/bge-small-zh-v1.5` | 本地 transformer 模型 id |
 | `remoteHost` | `https://huggingface.co` | 模型下载源；网络受限设 `https://hf-mirror.com` |
 | `apiBase` | `https://api.siliconflow.cn/v1` | API 地址（自动追加 `/embeddings` 路由） |

@@ -1,20 +1,36 @@
-# 插件自带的补丁层，安装时自动生效：
+# 插件自带的补丁层（包内配置），安装时自动生效：
 # `dsh plugin --profile web add dsh-plugin-semantic-memory`
 # （package.json 中的 dsh.bundle.patch 声明会把本层加入 profile 的 bundles）。
 #
-# 开发模式：本文件同时承载部署默认配置（当前使用该包时的取值）。
-# 以 file: 链接安装时，loader 每次启动都会实时读取本文件——
-# 改动后重启 dsh web 即生效，无需重新安装。
-# 若用于公开发布，请把部署相关取值移出本文件，让用户通过
-# settings.yaml（semantic-memory: 段）或自己的 profile patch 覆盖，
-# 那些层始终优先于本层。
+# 约定：包内配置覆盖外层配置。本文件是部署配置源——
+# settings.yaml（semantic-memory: 段）与用户 profile patch 不会覆盖本文件取值，
+# 只会补充本文件未声明的键。以 file: 链接安装时，loader 每次启动都会实时读取
+# 本文件——改动后重启 dsh web 即生效，无需重新安装。
 - insert:
     - id: semantic-memory
       name: 'dsh-plugin-semantic-memory'
       config:
+        # 运行模式：local = 本地 ONNX 模型（离线，默认）；
+        # cloud = 云端 OpenAI 兼容 /embeddings API（须填 apiKey）。
+        # 按模式生效对应字段组，切换后重启 dsh web。
+        mode: local
+
+        # —— 本地模式字段（mode: local 生效）——
+        # 本地 transformer 模型 id
+        localModel: Xenova/bge-small-zh-v1.5
         # 模型下载源：网络受限时使用 HuggingFace 镜像（https://hf-mirror.com）；
         # 能直连 huggingface.co 时可删掉此行或改为 https://huggingface.co
         remoteHost: https://hf-mirror.com
+
+        # —— 云端模式字段（mode: cloud 生效）——
+        # OpenAI 兼容 embedding 端点（/v1 结尾会自动追加 /embeddings）
+        apiBase: https://api.siliconflow.cn/v1
+        # API 密钥（secret）；mode: cloud 时必填
+        apiKey: ''
+        # 云端 embedding 模型名
+        apiModel: BAAI/bge-m3
+
+        # —— 通用行为字段 ——
         # 每轮系统提示自动注入的记忆条数（0 表示关闭自动注入）
         promptTopK: 3
         # 召回的最低相关度阈值（0~1，越高越严格）
