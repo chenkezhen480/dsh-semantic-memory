@@ -50,22 +50,46 @@ only configure when you want something different (see [Configuration](#configura
 
 ## Install into a DSH profile
 
-**Official one-liner** (the package ships an in-package `cordis.patch.yml`
-declared via `dsh.bundle.patch`, so `dsh plugin add` mounts it automatically —
-no manual profile edits):
+The package ships an in-package `cordis.patch.yml` declared via
+`dsh.bundle.patch`, so the plugin command mounts it automatically with no
+manual profile edits. DSH delegates plugin installation to `pnpm`, so `pnpm`
+must be available on `PATH` regardless of how DSH itself is launched.
+
+Use the command matching your DSH launcher:
 
 ```sh
+# DSH run through npx (no global `dsh` command)
+npx @deepseek-ai/dsh plugin --profile web add dsh-plugin-semantic-memory
+
+# DSH run from a deepseek-harness source checkout (run from that repo root)
+pnpm dsh plugin --profile web add dsh-plugin-semantic-memory
+
+# DSH installed with a global `dsh` command
 dsh plugin --profile web add dsh-plugin-semantic-memory
-# or from a local checkout / tarball:
-dsh plugin --profile web add file:C:/path/to/dsh-embedding
 ```
 
-Then restart `dsh web` and start a new session. All knobs have schema
-defaults; the in-package `cordis.patch.yml` is the deployment config source —
-**in-package config overrides outer layers** (settings.yaml and user patch rows
-only fill keys the package does not declare, they do not override it). With a
-`file:` linked install the loader reads that file live on every boot: edit it
-and restart `dsh web`, no reinstall needed.
+For a local checkout, build it first, then use the same launcher prefix:
+
+```sh
+cd C:/path/to/dsh-semantic-memory
+npm install
+npm run build
+npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memory
+```
+
+Then restart the Web profile with the same launcher
+(`npx @deepseek-ai/dsh web`, `pnpm dsh web`, or `dsh web`) and start a new
+session. All knobs have schema defaults; the in-package `cordis.patch.yml` is
+the deployment config source — **in-package config overrides outer layers**
+(settings.yaml and user patch rows only fill keys the package does not declare,
+they do not override it).
+
+> **Applying local configuration changes:** the Web profile uses a copied
+> snapshot for a `file:` dependency rather than reading the checkout live.
+> After changing `cordis.patch.yml` or rebuilding the plugin, delete
+> `<DSH_HOME>\profiles\web\node_modules\dsh-plugin-semantic-memory`, run
+> `<your DSH launcher> plugin --profile web install`, and restart the Web
+> profile.
 
 Manual equivalent (for older installs): add the dependency to the profile's
 `package.json`, insert a mount row — new entries must be **inserted** (a bare
@@ -96,8 +120,9 @@ back to the automatic selection:
 | `provider: 'local'` (explicit) | local, even with an `apiKey` set |
 | `provider: 'api'` (explicit) | API; requires `apiKey` |
 
-Switching deployment mode is editing `mode` in the in-package
-`cordis.patch.yml` — **in-package config overrides outer layers** (settings.yaml
+Switching deployment mode means editing `mode` in the in-package
+`cordis.patch.yml` and restarting the Web profile with the same DSH launcher —
+**in-package config overrides outer layers** (settings.yaml
 or user profile patch rows only fill keys the package does not declare; they do
 not override it). A restart is needed after patch-file changes; the settings
 document (`~/.dsh/settings.yaml`, `semantic-memory:` section) hot-reloads for

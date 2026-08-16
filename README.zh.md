@@ -27,15 +27,42 @@
 
 ## 安装到 DSH profile
 
-**官方一行命令**（包自带 `cordis.patch.yml`，通过 `dsh.bundle.patch` 声明，`dsh plugin add` 自动挂载——无需手改 profile）：
+包自带 `cordis.patch.yml`，通过 `dsh.bundle.patch` 声明，插件命令会自动挂载，
+无需手改 profile。DSH 会把插件安装操作转交给 `pnpm`，因此无论 DSH 本身以
+哪种方式运行，都必须确保 `pnpm` 已加入 `PATH`。
+
+根据 DSH 的实际启动方式选择命令：
 
 ```sh
+# 通过 npx 运行 DSH（系统中没有全局 dsh 命令）
+npx @deepseek-ai/dsh plugin --profile web add dsh-plugin-semantic-memory
+
+# 从 deepseek-harness 源码运行（需在该仓库根目录执行）
+pnpm dsh plugin --profile web add dsh-plugin-semantic-memory
+
+# 已安装可全局调用的 dsh 命令
 dsh plugin --profile web add dsh-plugin-semantic-memory
-# 或本地目录 / tarball：
-dsh plugin --profile web add file:C:/path/to/dsh-embedding
 ```
 
-然后**重启 `dsh web`** 并开新会话。所有参数都有 schema 默认值；**包内配置覆盖外层配置**——部署配置源是插件包内的 `cordis.patch.yml`，`~/.dsh/settings.yaml` 的 `semantic-memory:` 段与用户 profile patch 只会补充包内未声明的键，不会覆盖包内取值。以 `file:` 链接安装时 loader 每次启动实时读取该文件：改完重启即生效，无需重新安装。
+从本地源码安装时，先完成构建，再使用同一种 DSH 启动前缀：
+
+```sh
+cd C:/path/to/dsh-semantic-memory
+npm install
+npm run build
+npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memory
+```
+
+然后用同一种方式重启 Web profile（`npx @deepseek-ai/dsh web`、
+`pnpm dsh web` 或 `dsh web`）并开新会话。所有参数都有 schema 默认值；
+**包内配置覆盖外层配置**——部署配置源是插件包内的 `cordis.patch.yml`，
+`~/.dsh/settings.yaml` 的 `semantic-memory:` 段与用户 profile patch 只会补充包内
+未声明的键，不会覆盖包内取值。
+
+> **本地配置修改如何生效：** Web profile 会复制 `file:` 依赖的快照，并不会实时读取
+> 源码目录。修改 `cordis.patch.yml` 或重新构建插件后，需要删除
+> `<DSH_HOME>\profiles\web\node_modules\dsh-plugin-semantic-memory`，执行
+> `<你的 DSH 启动命令> plugin --profile web install`，再重启 Web profile。
 
 手动安装的等价做法（老版本）：把依赖加进 profile 的 `package.json`，并插入挂载行——**新条目必须用 `insert`**（裸 `- id:` 只覆盖已存在的 bundle id，会被静默忽略）：
 
@@ -62,7 +89,7 @@ dsh plugin --profile web add file:C:/path/to/dsh-embedding
 | 显式 `provider: 'local'` | 本地（即使有 `apiKey`） |
 | 显式 `provider: 'api'` | API（必须配 `apiKey`） |
 
-切换部署模式 = 改包内 `cordis.patch.yml` 的 `mode`（`local` ↔ `cloud`）并重启 `dsh web`。**包内配置覆盖外层配置**：settings.yaml 与用户 profile patch 只补充包内未声明的键，不会覆盖包内取值。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
+切换部署模式 = 修改包内 `cordis.patch.yml` 的 `mode`（`local` ↔ `cloud`），同步本地 `file:` 快照后，再用同一种 DSH 启动方式重启 Web profile。**包内配置覆盖外层配置**：settings.yaml 与用户 profile patch 只补充包内未声明的键，不会覆盖包内取值。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
 
 ### 验证插件已生效
 
