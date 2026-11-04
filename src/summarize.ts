@@ -71,6 +71,14 @@ const SUMMARY_SYSTEM_PROMPT = [
 // answer often starts with newlines, and `\n\n` would truncate the JSON before
 // it begins. Let the model finish and rely on parseSummary's tolerance.
 
+/** The slice of a live Session the summarizer reads. */
+interface SessionLike {
+  readonly id: string
+  readonly header?: { readonly cwd?: string }
+  /** Committed log owned by this session; the current Session API. */
+  ownEvents(): readonly unknown[]
+}
+
 export class AutoSummarizer {
   private readonly counts = new Map<string, number>()
   private readonly busy = new Set<string>()
@@ -117,7 +125,7 @@ export class AutoSummarizer {
     return this.counts.get(sessionId) ?? 0
   }
 
-  private trigger(session: { readonly id: string; readonly events?: readonly unknown[] }): void {
+  private trigger(session: SessionLike): void {
     if (this.busy.has(session.id)) return
     this.busy.add(session.id)
     console.log(`[semantic-memory] auto-summary triggered for session ${session.id} (every ${this.every})`)
@@ -133,13 +141,13 @@ export class AutoSummarizer {
     })()
   }
 
-  private async summarize(session: { readonly id: string; readonly events?: readonly unknown[] }): Promise<void> {
+  private async summarize(session: SessionLike): Promise<void> {
     const { llm, defaultModel } = this.services
     if (llm === undefined || defaultModel === undefined) {
       console.error(`[semantic-memory] auto-summary skipped: llm=${llm === undefined ? 'missing' : 'ok'} defaultModel=${defaultModel === undefined ? 'missing' : 'ok'}`)
       return
     }
-    const events = session.events ?? []
+    const events = session.ownEvents()
     const maxSeq = lastMessageSeq(events)
     if (maxSeq === undefined) {
       console.error(`[semantic-memory] auto-summary skipped: no message events (events=${events.length})`)
@@ -291,7 +299,7 @@ export function parseSummary(text: string): SummaryItem[] {
   return items.slice(0, 5)
 }
 
-function sessionWorkspace(session: { readonly events?: readonly unknown[] }): string | undefined {
+function sessionWorkspace(session: SessionLike): string | undefined {
   const header = (session as { header?: { cwd?: string } }).header
   return header?.cwd
 }

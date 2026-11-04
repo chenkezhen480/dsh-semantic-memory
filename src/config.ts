@@ -1,12 +1,17 @@
 /** Deployment configuration for the semantic memory plugin. */
 
+import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 
 /** Memory kinds the model may distinguish when writing entries. */
 export const MEMORY_KINDS = ['fact', 'decision', 'preference', 'note'] as const
 export type MemoryKind = (typeof MEMORY_KINDS)[number]
 
-/** Settings namespace registered with the harness settings service. */
+/**
+ * Legacy settings-document namespace. The current Settings service projects
+ * this plugin's Config entry directly, so nothing registers under this name any
+ * more; it stays exported for callers that still import it.
+ */
 export const SETTINGS_NAMESPACE = 'semantic-memory'
 
 export interface Config {
@@ -68,25 +73,73 @@ export interface ResolvedConfig {
   readonly summarizeTemperature: number
 }
 
-/** Schemastery schema for Loader defaults, settings registration, and config docs. */
-export const Config: z<Config> = z.object({
-  mode: z.union([z.const('local'), z.const('cloud')]),
-  provider: z.union([z.const('local'), z.const('api'), z.const('auto')]).default('auto'),
-  localModel: z.string().default('Xenova/bge-small-zh-v1.5'),
-  remoteHost: z.string().default('https://huggingface.co'),
-  apiBase: z.string().default('https://api.siliconflow.cn/v1'),
-  apiKey: z.string().role('secret').default(''),
-  apiModel: z.string().default('BAAI/bge-m3'),
-  memoryPath: z.string().default(''),
-  promptTopK: z.number().step(1).min(0).max(20).default(3),
-  maxSearchResults: z.number().step(1).min(1).max(50).default(10),
-  minScore: z.number().min(0).max(1).default(0.35),
-  halfLifeMs: z.number().min(1).default(30 * 24 * 60 * 60 * 1000),
-  autoSummarizeEvery: z.number().step(1).min(0).max(100).default(5),
-  summarizeWindow: z.number().step(1).min(1).max(100).default(12),
-  summarizeMaxTokens: z.number().step(1).min(64).max(4000).default(800),
-  summarizeTemperature: z.number().min(0).max(2).default(0.2),
-})
+/**
+ * Runtime shape of the configuration handed to `apply()` by the Loader: every
+ * field is a live reference, because every field below is `.volatile()`.
+ */
+export type ConfigValues = {
+  readonly [K in keyof Required<Config>]: Volatile<Config[K] | undefined>
+}
+
+/**
+ * What `apply()` accepts: Loader references in a running profile, or a plain
+ * object when the plugin is mounted directly (tests, embedding in another app).
+ */
+export type ConfigInput = ConfigValues | Config
+
+/**
+ * Schemastery schema for Loader defaults and config docs.
+ *
+ * Every field is `.volatile()`: the Settings forms project volatile fields, a
+ * form write persists into the profile patch, and the Loader then commits the
+ * new value into the running reference in place and emits
+ * `loader/volatile-update` on this fiber instead of remounting the plugin.
+ * Fields must stay at fixed object paths — Schemastery rejects a volatile field
+ * nested inside another volatile field.
+ */
+export const Config: z<ConfigValues> = z.object({
+  mode: z.union([z.const('local'), z.const('cloud')]).volatile(),
+  provider: z.union([z.const('local'), z.const('api'), z.const('auto')]).default('auto').volatile(),
+  localModel: z.string().default('Xenova/bge-small-zh-v1.5').volatile(),
+  remoteHost: z.string().default('https://huggingface.co').volatile(),
+  apiBase: z.string().default('https://api.siliconflow.cn/v1').volatile(),
+  apiKey: z.string().role('secret').default('').volatile(),
+  apiModel: z.string().default('BAAI/bge-m3').volatile(),
+  memoryPath: z.string().default('').volatile(),
+  promptTopK: z.number().step(1).min(0).max(20).default(3).volatile(),
+  maxSearchResults: z.number().step(1).min(1).max(50).default(10).volatile(),
+  minScore: z.number().min(0).max(1).default(0.35).volatile(),
+  halfLifeMs: z.number().min(1).default(30 * 24 * 60 * 60 * 1000).volatile(),
+  autoSummarizeEvery: z.number().step(1).min(0).max(100).default(5).volatile(),
+  summarizeWindow: z.number().step(1).min(1).max(100).default(12).volatile(),
+  summarizeMaxTokens: z.number().step(1).min(64).max(4000).default(800).volatile(),
+  summarizeTemperature: z.number().min(0).max(2).default(0.2).volatile(),
+}) as z<ConfigValues>
+
+/** Declared field order; also the order the Settings form renders. */
+const CONFIG_FIELDS = [
+  'mode', 'provider', 'localModel', 'remoteHost', 'apiBase', 'apiKey', 'apiModel',
+  'memoryPath', 'promptTopK', 'maxSearchResults', 'minScore', 'halfLifeMs',
+  'autoSummarizeEvery', 'summarizeWindow', 'summarizeMaxTokens', 'summarizeTemperature',
+] as const satisfies readonly (keyof Required<Config>)[]
+
+/**
+ * Read plain values out of the configuration `apply()` received.
+ *
+ * Loader references expose `.get()`; a plain object passes through unchanged, so
+ * the same helper serves a profile mount and a direct mount. Reading through it
+ * is what makes a committed settings edit visible to the next consumer call.
+ */
+export function plainConfig(config: ConfigInput): Config {
+  const plain: Record<string, unknown> = {}
+  for (const key of CONFIG_FIELDS) {
+    const value = (config as Record<string, unknown>)[key]
+    plain[key] = value !== null && typeof value === 'object' && typeof (value as { get?: unknown }).get === 'function'
+      ? (value as Volatile<unknown>).get()
+      : value
+  }
+  return plain as Config
+}
 
 const DEFAULT_MEMORY_FILE = 'memories/memories.jsonl'
 

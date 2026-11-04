@@ -1,9 +1,14 @@
 /** Deployment configuration for the semantic memory plugin. */
+import type { Volatile } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 /** Memory kinds the model may distinguish when writing entries. */
 export declare const MEMORY_KINDS: readonly ["fact", "decision", "preference", "note"];
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
-/** Settings namespace registered with the harness settings service. */
+/**
+ * Legacy settings-document namespace. The current Settings service projects
+ * this plugin's Config entry directly, so nothing registers under this name any
+ * more; it stays exported for callers that still import it.
+ */
 export declare const SETTINGS_NAMESPACE = "semantic-memory";
 export interface Config {
     /**
@@ -62,8 +67,37 @@ export interface ResolvedConfig {
     readonly summarizeMaxTokens: number;
     readonly summarizeTemperature: number;
 }
-/** Schemastery schema for Loader defaults, settings registration, and config docs. */
-export declare const Config: z<Config>;
+/**
+ * Runtime shape of the configuration handed to `apply()` by the Loader: every
+ * field is a live reference, because every field below is `.volatile()`.
+ */
+export type ConfigValues = {
+    readonly [K in keyof Required<Config>]: Volatile<Config[K] | undefined>;
+};
+/**
+ * What `apply()` accepts: Loader references in a running profile, or a plain
+ * object when the plugin is mounted directly (tests, embedding in another app).
+ */
+export type ConfigInput = ConfigValues | Config;
+/**
+ * Schemastery schema for Loader defaults and config docs.
+ *
+ * Every field is `.volatile()`: the Settings forms project volatile fields, a
+ * form write persists into the profile patch, and the Loader then commits the
+ * new value into the running reference in place and emits
+ * `loader/volatile-update` on this fiber instead of remounting the plugin.
+ * Fields must stay at fixed object paths — Schemastery rejects a volatile field
+ * nested inside another volatile field.
+ */
+export declare const Config: z<ConfigValues>;
+/**
+ * Read plain values out of the configuration `apply()` received.
+ *
+ * Loader references expose `.get()`; a plain object passes through unchanged, so
+ * the same helper serves a profile mount and a direct mount. Reading through it
+ * is what makes a committed settings edit visible to the next consumer call.
+ */
+export declare function plainConfig(config: ConfigInput): Config;
 /**
  * Environment variable for the auto-summarize cadence: a positive integer
  * triggers every N user messages, `0` disables the feature. Takes precedence

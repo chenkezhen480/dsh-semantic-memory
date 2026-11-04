@@ -154,7 +154,7 @@ test('auto-summarizer triggers every N user messages and writes memories', async
   }, { every: 5, window: 12, maxTokens: 400, temperature: 0.2 })
 
   const events: unknown[] = []
-  const session = { id: 'sess-1', events, header: { cwd: 'C:\\work' } }
+  const session = { id: 'sess-1', ownEvents: () => events, header: { cwd: 'C:\\work' } }
   const capture = captureListener(ctx => summarizer.attach(ctx as never))
 
   for (let i = 1; i <= 4; i += 1) {
@@ -213,7 +213,7 @@ test('incremental summary: the second trigger only covers new messages', async (
   }, { every: 5, window: 12, maxTokens: 400, temperature: 0.2 })
 
   const events: unknown[] = []
-  const session = { id: 'sess-inc', events }
+  const session = { id: 'sess-inc', ownEvents: () => events }
   const capture = captureListener(ctx => summarizer.attach(ctx as never))
   let seq = 0
   const send = (text: string): void => {

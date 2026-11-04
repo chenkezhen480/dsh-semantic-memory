@@ -16,3 +16,27 @@ export interface ToolDefinitionLike {
     readonly name: string;
     execute(args: Record<string, unknown>, exec: ToolRunContext): Promise<unknown>;
 }
+/**
+ * Tool executor stub. The current tools service refuses to assemble a prompt
+ * without a selected executor, while these tests only exercise the memory
+ * prompt section and tool bodies, never tool dispatch.
+ */
+export declare const StubToolExecutor: {
+    describe: (tools: readonly {
+        name: string;
+        description: string;
+        parameters: Record<string, unknown>;
+    }[]) => {
+        schemas: {
+            name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+        }[];
+        knownNames: string[];
+    };
+    execute: () => Promise<{
+        results: never[];
+        additionalContexts: never[];
+        concluded: boolean;
+    }>;
+};

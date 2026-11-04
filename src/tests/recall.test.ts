@@ -14,7 +14,7 @@ import test, { afterEach } from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolRunContext } from '@deepseek-ai/dsh-tools'
-import { SemanticMemory, type ToolDefinitionLike } from '../plugin-under-test.ts'
+import { SemanticMemory, StubToolExecutor, type ToolDefinitionLike } from '../plugin-under-test.ts'
 import { extractUserText } from '../recall.ts'
 
 const DIM = 8
@@ -66,6 +66,9 @@ async function mount(): Promise<{ ctx: Context; tool(name: string): ToolDefiniti
     minScore: 0,
     halfLifeMs: 86400000,
   })
+  // The tools service mounts asynchronously with its plugin; select the stub
+  // executor once it exists.
+  ctx.tools.setExecutor(StubToolExecutor as never)
   return { ctx, tool: name => toolByName(ctx, name) }
 }
 

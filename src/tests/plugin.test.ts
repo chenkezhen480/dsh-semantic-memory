@@ -14,7 +14,7 @@ import test, { afterEach } from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolRunContext } from '@deepseek-ai/dsh-tools'
-import { SemanticMemory, type ToolDefinitionLike } from '../plugin-under-test.ts'
+import { SemanticMemory, StubToolExecutor, type ToolDefinitionLike } from '../plugin-under-test.ts'
 
 const DIM = 8
 const activeContexts: Context[] = []
@@ -57,11 +57,14 @@ interface Mounted {
   tool(name: string): ToolDefinitionLike
 }
 
-async function mount(): Promise<Mounted> {
+async function mount(withSettings = false): Promise<Mounted> {
   const ctx = new Context()
   activeContexts.push(ctx)
   ctx.plugin(SystemPrompt, {})
   ctx.plugin(ToolRuntime, {})
+  // The current Settings service has no `register`: the entry's Config is the
+  // registration. Present it before the plugin mounts to prove apply() ignores it.
+  if (withSettings) ctx.provide('settings', { describe: () => [] } as never)
   const dir = await mkdtemp(join(tmpdir(), 'smem-plugin-'))
   const memoryPath = join(dir, 'memories.jsonl')
   ctx.plugin(SemanticMemory, {
@@ -76,6 +79,10 @@ async function mount(): Promise<Mounted> {
   })
   assert.ok(ctx.tools !== undefined, 'tools service missing')
   assert.ok(ctx.systemPrompt !== undefined, 'systemPrompt service missing')
+  // The tools service mounts asynchronously with its plugin; prompt assembly
+  // requires a selected executor, and the memory section tests do not dispatch
+  // tool calls.
+  ctx.tools.setExecutor(StubToolExecutor as never)
   return {
     ctx,
     memoryPath,
@@ -168,5 +175,14 @@ test('memory_write rejects empty content', async () => {
     mounted.tool('memory_write').execute({ kind: 'note', content: '   ' }, runExec()),
     /content must be non-empty/,
   )
+  await mounted.ctx.fiber.dispose()
+})
+
+test('mounts while a settings service without register is present', async () => {
+  // The current Settings contract has no `register` member; a settings service
+  // must never make apply() throw (that was the pre-0.2.2 contract).
+  stubFetch()
+  const mounted = await mount(true)
+  assert.ok(mounted.tool('memory_write') !== undefined, 'tools did not register')
   await mounted.ctx.fiber.dispose()
 })

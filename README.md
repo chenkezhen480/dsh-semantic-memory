@@ -8,6 +8,11 @@ A `dsh-plugin` (Cordis plugin) that gives the model a persistent, embedding-base
 memory across sessions — unlike the harness's built-in `session_query` (literal
 FTS5), this store retrieves by *meaning*.
 
+> **Compatibility.** This version targets the current DeepSeek Harness API:
+> volatile plugin Config (`loader/volatile-update`) and `Session.ownEvents()`.
+> It replaces the removed `settings.register` contract, so it does not work with
+> pre-0.2.2 harnesses.
+
 **Zero-config out of the box**: install, restart, and start a new session. The
 local embedding model downloads itself on first use (~100 MB); the four tools,
 per-question recall, and 5-turn auto-summarization all work with defaults. You
@@ -79,10 +84,12 @@ npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memor
 
 Then restart the Web profile with the same launcher
 (`npx @deepseek-ai/dsh web`, `pnpm dsh web`, or `dsh web`) and start a new
-session. All knobs have schema defaults; the in-package `cordis.patch.yml` is
-the deployment config source — **in-package config overrides outer layers**
-(settings.yaml and user patch rows only fill keys the package does not declare,
-they do not override it).
+session. All knobs have schema defaults supplied by the in-package
+`cordis.patch.yml`. Configuration follows the standard Loader precedence:
+bundle patch (defaults) < profile patch, and the Settings page writes the profile
+patch for you. Every field is `.volatile()`, so a settings edit is committed into
+the running plugin through `loader/volatile-update` and applies live — no
+restart, no reinstall. `~/.dsh/settings.yaml` is no longer read by this plugin.
 
 > **Applying local configuration changes:** the Web profile uses a copied
 > snapshot for a `file:` dependency rather than reading the checkout live.
@@ -120,14 +127,12 @@ back to the automatic selection:
 | `provider: 'local'` (explicit) | local, even with an `apiKey` set |
 | `provider: 'api'` (explicit) | API; requires `apiKey` |
 
-Switching deployment mode means editing `mode` in the in-package
-`cordis.patch.yml` and restarting the Web profile with the same DSH launcher —
-**in-package config overrides outer layers** (settings.yaml
-or user profile patch rows only fill keys the package does not declare; they do
-not override it). A restart is needed after patch-file changes; the settings
-document (`~/.dsh/settings.yaml`, `semantic-memory:` section) hot-reloads for
-the keys it is allowed to supply. The first local embed downloads the model
-(~100 MB, cached in `~/.cache/huggingface`; use `remoteHost` for a mirror).
+Switching deployment mode means setting `mode` (Settings page, or the profile
+patch) — the change is adopted live, with no restart. Only editing the
+in-package `cordis.patch.yml` of a `file:` install needs a reinstall, because
+the profile keeps a snapshot of that file. The first local embed downloads the
+model (~100 MB, cached in `~/.cache/huggingface`; use `remoteHost` for a
+mirror).
 
 ### Verify the plugin is live
 
@@ -158,9 +163,9 @@ carries a `## Long-term memory` section once memories exist.
 
 - Store: `$DSH_HOME/memories/memories.jsonl` (one JSON line per entry, vectors
   included; edit/backup freely).
-- Settings: in-package `cordis.patch.yml` (deployment source of truth — package
-  config overrides outer layers); `~/.dsh/settings.yaml` under `semantic-memory:`
-  only fills keys the package does not declare (hot-reloaded).
+- Settings: this plugin's Loader entry — `cordis.patch.yml` defaults, overridden
+  by the profile patch the Settings page writes. Volatile fields, so edits apply
+  live; `~/.dsh/settings.yaml` is not used.
 
 ### Troubleshooting
 
