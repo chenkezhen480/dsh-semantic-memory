@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-semantic-memory",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Semantic long-term memory for DeepSeek Harness: embedding-based retrieval over a persistent cross-session memory store, with model-facing tools, proactive per-question recall, automatic conversation summarization, and auto-selected embedding provider (apiKey present → API, otherwise local).",
   "type": "module",
   "main": "lib/index.js",
@@ -43,9 +43,10 @@
     "@deepseek-ai/schemastery": "*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "*",
-    "@deepseek-ai/dsh-tools": "*",
-    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/dsh-system-prompt": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "^3.19.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
   },

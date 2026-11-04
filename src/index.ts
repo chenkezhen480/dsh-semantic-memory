@@ -9,19 +9,20 @@
  * proactively recalls memories relevant to the current question into every
  * system-prompt assembly, and auto-summarizes conversations every N turns.
  *
- * Configuration flows through the harness settings service when available:
- * the `semantic-memory` namespace layers the user document
- * (`$DSH_HOME/settings.yaml`) UNDER the composition (cordis patch) config —
- * in-package config overrides outer layers (包内覆盖外层). Provider selection
- * is `mode`-driven (`local` / `cloud`) or automatic: a non-empty `apiKey`
- * uses the API, otherwise the local model. Settings changes hot-reload
- * without a restart.
+ * Configuration lives in this plugin's Loader entry (the bundle's
+ * `cordis.patch.yml` defaults, overridden by the profile patch or the Settings
+ * forms). Every field is volatile, so a Settings edit is committed into the
+ * running references and announced through `loader/volatile-update` instead of
+ * remounting the plugin; a change to an ordinary field would remount it, which
+ * simply runs `apply()` again. Provider selection is `mode`-driven
+ * (`local` / `cloud`) or automatic: a non-empty `apiKey` uses the API,
+ * otherwise the local model.
  *
  * @module dsh-plugin-semantic-memory
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { Config, resolveConfig, SETTINGS_NAMESPACE, type Config as ConfigValue, type ResolvedConfig } from './config.ts'
+import { Config, plainConfig, resolveConfig, SETTINGS_NAMESPACE, type ConfigInput, type ResolvedConfig } from './config.ts'
 import { EmbeddingService } from './embedding.ts'
 import { registerMemoryPrompt } from './prompt.ts'
 import { RecallCache } from './recall.ts'
@@ -40,22 +41,21 @@ export { AutoSummarizer, parseSummary, extractTranscript, type SummarizeConfig }
 /** Capability services required by the model-facing consumer. */
 export const inject = ['tools', 'systemPrompt']
 
-/** Structural settings surface (avoids a hard dsh-settings peer dependency). */
-interface SettingsLike {
-  register(
-    ns: string,
-    schema: unknown,
-    options?: { base?: unknown },
-  ): {
-    get(): unknown
-    watch(listener: (next: unknown, prev: unknown) => void): () => void
+/**
+ * The Loader publishes `loader/volatile-update` on the owning fiber. Declared
+ * here so the plugin type-checks without a hard `cordis-plugin-loader`
+ * dependency; the runtime event comes from the profile's Loader.
+ */
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    'loader/volatile-update'(paths: readonly (readonly string[])[]): void
   }
 }
 
-export function apply(ctx: Context, config: ConfigValue): void {
-  // A single mutable resolved config drives every consumer; settings hot
-  // reloads replace it in place.
-  let resolved = resolveConfig(config)
+export function apply(ctx: Context, config: ConfigInput): void {
+  // A single mutable resolved config drives every consumer; a settings commit
+  // replaces it in place through `loader/volatile-update` below.
+  let resolved = resolveConfig(plainConfig(config))
   let summarizer: ReturnType<typeof createSummarizer> | undefined
   const applyResolved = (next: ResolvedConfig): void => {
     resolved = next
@@ -124,32 +124,23 @@ export function apply(ctx: Context, config: ConfigValue): void {
   }
   ensureSummarizer()
 
-  // Settings integration: the user document (`settings.yaml`) layers UNDER
-  // the composition (cordis patch) config — in-package config overrides outer
-  // layers (包内覆盖外层), the user document only fills keys the composition
-  // does not declare. Changes hot-reload on every commit. Without a settings
-  // provider the plugin keeps resolving the composition config alone.
-  const settings = ctx.get('settings') as unknown as SettingsLike | undefined
-  if (settings !== undefined) {
-    const scope = settings.register(SETTINGS_NAMESPACE, Config)
-    const mergeUnder = (stored: ConfigValue): ConfigValue => ({ ...stored, ...config })
-    const stored = scope.get()
-    if (stored !== undefined) {
-      try {
-        applyResolved(resolveConfig(mergeUnder(stored as ConfigValue)))
-      } catch (error) {
-        ctx.logger.warn(`semantic-memory: stored settings rejected: ${String(error)}`)
-      }
+  // Settings integration (current Loader contract). This entry's Config IS the
+  // registration: the Settings service projects its volatile fields into a form
+  // keyed by the entry id, and a form write persists into the profile patch. The
+  // Loader then commits the new values into the running volatile references and
+  // emits `loader/volatile-update` on this fiber; re-resolve here so the
+  // embedding provider, the decay policy, and the summarizer adopt them without
+  // a restart. Without the Loader the event never fires and the composition
+  // config alone keeps applying.
+  ctx.on('loader/volatile-update', () => {
+    try {
+      applyResolved(resolveConfig(plainConfig(config)))
+      ctx.logger.info('semantic-memory: settings reloaded (provider=%s)', resolved.provider)
+    } catch (error) {
+      // An invalid candidate must not tear down the working configuration.
+      ctx.logger.warn(`semantic-memory: settings update rejected: ${String(error)}`)
     }
-    ctx.effect(() => scope.watch((next) => {
-      try {
-        applyResolved(resolveConfig(mergeUnder(next as ConfigValue)))
-        ctx.logger.info('semantic-memory: settings reloaded (provider=%s)', resolved.provider)
-      } catch (error) {
-        ctx.logger.warn(`semantic-memory: settings update rejected: ${String(error)}`)
-      }
-    }), 'semantic-memory settings watcher')
-  }
+  })
 
   ctx.effect(() => () => {
     void embeddings.dispose()

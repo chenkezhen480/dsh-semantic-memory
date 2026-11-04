@@ -54,10 +54,11 @@ npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memor
 ```
 
 然后用同一种方式重启 Web profile（`npx @deepseek-ai/dsh web`、
-`pnpm dsh web` 或 `dsh web`）并开新会话。所有参数都有 schema 默认值；
-**包内配置覆盖外层配置**——部署配置源是插件包内的 `cordis.patch.yml`，
-`~/.dsh/settings.yaml` 的 `semantic-memory:` 段与用户 profile patch 只会补充包内
-未声明的键，不会覆盖包内取值。
+`pnpm dsh web` 或 `dsh web`）并开新会话。所有参数都有 schema 默认值，默认值来自
+插件包内的 `cordis.patch.yml`。配置遵循标准 Loader 优先级：包内 patch（默认值）
+< profile patch，设置页会把修改写进 profile patch。所有字段都是 `.volatile()`，
+因此设置修改通过 `loader/volatile-update` 就地提交到运行中的插件并立即生效——
+无需重启，也无需重装。本插件不再读取 `~/.dsh/settings.yaml`。
 
 > **本地配置修改如何生效：** Web profile 会复制 `file:` 依赖的快照，并不会实时读取
 > 源码目录。修改 `cordis.patch.yml` 或重新构建插件后，需要删除
@@ -89,7 +90,7 @@ npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memor
 | 显式 `provider: 'local'` | 本地（即使有 `apiKey`） |
 | 显式 `provider: 'api'` | API（必须配 `apiKey`） |
 
-切换部署模式 = 修改包内 `cordis.patch.yml` 的 `mode`（`local` ↔ `cloud`），同步本地 `file:` 快照后，再用同一种 DSH 启动方式重启 Web profile。**包内配置覆盖外层配置**：settings.yaml 与用户 profile patch 只补充包内未声明的键，不会覆盖包内取值。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
+切换部署模式 = 设置 `mode`（设置页或 profile patch），修改即时生效、无需重启。只有修改 `file:` 安装的包内 `cordis.patch.yml` 才需要重装——profile 保留的是该文件的快照。首次本地嵌入会下载模型（约 100 MB，缓存于 `~/.cache/huggingface`；网络受限用 `remoteHost` 指镜像）。
 
 ### 验证插件已生效
 
@@ -113,7 +114,7 @@ npx @deepseek-ai/dsh plugin --profile web add file:C:/path/to/dsh-semantic-memor
 ### 数据位置
 
 - 记忆库：`$DSH_HOME/memories/memories.jsonl`（每条一行 JSON，含向量；可自由编辑/备份）
-- 配置：包内 `cordis.patch.yml`（部署配置源，包内覆盖外层）；`~/.dsh/settings.yaml` 的 `semantic-memory:` 段只补充包内未声明的键（热更新）
+- 配置：本插件的 Loader 条目——`cordis.patch.yml` 提供默认值，设置页写入的 profile patch 覆盖它；字段均为 volatile，修改即时生效；不再使用 `~/.dsh/settings.yaml`
 
 ### 常见问题
 

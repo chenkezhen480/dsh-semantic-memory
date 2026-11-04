@@ -9,18 +9,19 @@
  * proactively recalls memories relevant to the current question into every
  * system-prompt assembly, and auto-summarizes conversations every N turns.
  *
- * Configuration flows through the harness settings service when available:
- * the `semantic-memory` namespace layers the user document
- * (`$DSH_HOME/settings.yaml`) UNDER the composition (cordis patch) config —
- * in-package config overrides outer layers (包内覆盖外层). Provider selection
- * is `mode`-driven (`local` / `cloud`) or automatic: a non-empty `apiKey`
- * uses the API, otherwise the local model. Settings changes hot-reload
- * without a restart.
+ * Configuration lives in this plugin's Loader entry (the bundle's
+ * `cordis.patch.yml` defaults, overridden by the profile patch or the Settings
+ * forms). Every field is volatile, so a Settings edit is committed into the
+ * running references and announced through `loader/volatile-update` instead of
+ * remounting the plugin; a change to an ordinary field would remount it, which
+ * simply runs `apply()` again. Provider selection is `mode`-driven
+ * (`local` / `cloud`) or automatic: a non-empty `apiKey` uses the API,
+ * otherwise the local model.
  *
  * @module dsh-plugin-semantic-memory
  */
 import type { Context } from '@deepseek-ai/cordis';
-import { Config, resolveConfig, SETTINGS_NAMESPACE, type Config as ConfigValue } from './config.ts';
+import { Config, resolveConfig, SETTINGS_NAMESPACE, type ConfigInput } from './config.ts';
 export declare const name = "semantic-memory";
 export { Config, SETTINGS_NAMESPACE, resolveConfig };
 export { MemoryStore, contentHash, strengthOf, type MemoryEntry, type SearchHit } from './store.ts';
@@ -29,4 +30,14 @@ export { RecallCache, extractUserText, type RecallState } from './recall.ts';
 export { AutoSummarizer, parseSummary, extractTranscript, type SummarizeConfig } from './summarize.ts';
 /** Capability services required by the model-facing consumer. */
 export declare const inject: string[];
-export declare function apply(ctx: Context, config: ConfigValue): void;
+/**
+ * The Loader publishes `loader/volatile-update` on the owning fiber. Declared
+ * here so the plugin type-checks without a hard `cordis-plugin-loader`
+ * dependency; the runtime event comes from the profile's Loader.
+ */
+declare module '@deepseek-ai/cordis' {
+    interface Events {
+        'loader/volatile-update'(paths: readonly (readonly string[])[]): void;
+    }
+}
+export declare function apply(ctx: Context, config: ConfigInput): void;

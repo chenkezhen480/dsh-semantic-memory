@@ -188,7 +188,7 @@ function callerOf(exec: ToolRunContext): Caller {
   if (agent === undefined) return { workspace: undefined, source: undefined }
   const session = agent.session
   if (session === undefined) return { workspace: undefined, source: undefined }
-  const events = session.events
+  const events = session.ownEvents()
   const last = events.length > 0 ? events[events.length - 1] : undefined
   return {
     workspace: session.header.cwd,
